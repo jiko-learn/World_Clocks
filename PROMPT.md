@@ -26,12 +26,12 @@ Create an ESP32 self-hosted Dual Timezone World Clock & System Monitor project u
 ### 2. ESP32 Firmware Functionality (`src/`)
 - `web_server.cpp`: Mounts LittleFS, serves precompressed `.gz` assets from `/` with `public, max-age=600`, and sets up API routes.
 - `api_routes.cpp`:
-  - `GET /api/health`: JSON with `ok`, `fw`, `uptime`, `heap`, `minHeap`, `frag`, `mode`, `connected`, `ip`, `rssi`, `fsUsed`, `fsTotal`, `epoch`, `timeSynced`.
+  - `GET /api/health`: JSON with `ok`, `fw`, `uptime`, `heap`, `minHeap`, `totalHeap`, `maxAlloc`, `frag`, `mode`, `connected`, `ip`, `rssi`, `fsUsed`, `fsTotal`, `epoch`, `timeSynced`.
   - `GET /api/time`: Epoch and sync status.
   - `GET /api/config`, `PUT /api/config`, `POST /api/wifi/reset`.
   - `GET /api/link`: Basic RSSI and connection state.
   - Keep RAM lean: Use a single 512-byte reply buffer, no bulky 4KB static buffers.
-- `system_info.cpp`: Tracks heap free, min heap, heap fragmentation (`heap_caps_get_info`), uptime, and RSSI.
+- `system_info.cpp`: Tracks total heap (`ESP.getHeapSize()`), free heap (`ESP.getFreeHeap()`), min free heap (`ESP.getMinFreeHeap()`), max alloc block (`heap_caps_get_largest_free_block()`), heap fragmentation, uptime, and RSSI.
 - `wifi_manager.cpp`: Manages STA mode with NVS persistence (`Preferences`), fallback to provisioning AP, and mDNS responder.
 - `console.cpp`: Non-blocking 115200 baud serial CLI with commands: `show`, `ssid <n>`, `pass <p>`, `host <n>`, `scan`, `radio`, `reset`, `reboot`.
 - `main.cpp`: Setup and non-blocking loop with 5ms sleep.
@@ -50,7 +50,10 @@ Create an ESP32 self-hosted Dual Timezone World Clock & System Monitor project u
        - Reusable top-level `Intl.DateTimeFormat` instances to prevent garbage collection churn.
      - Footer: Time difference summary banner (`Bangkok is 11 hours ahead of New York · UTC+7 vs EDT`).
   3. System Status Card:
-     - 6 responsive metric fields: Uptime, Free heap, Heap fragmentation %, IP address, Firmware version, Filesystem usage.
+     - Primary grid: Uptime, Firmware version, IP address, Filesystem usage (`LittleFS`).
+     - Dedicated RAM (Heap) Section:
+       - Visual progress gauge showing Used / Total RAM with adaptive color transitions (`#3fb950` < 70%, `#d29922` 70-85%, `#f85149` > 85%).
+       - Metric sub-grid: Free RAM, Peak watermark (`Min Free`), Fragmentation %, and Maximum Allocatable Block.
   4. Link Quality Card:
      - Strictly 1 single number panel: Header with status pill, label "Signal", and bold colored dBm value (e.g. `-56 dBm`).
 - No form inputs, SSID/password fields, or history bar charts on the main dashboard.

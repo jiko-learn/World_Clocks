@@ -60,6 +60,14 @@ Embedded microcontrollers operate under strict memory constraints (320 KB SRAM s
    - `-DARDUINOJSON_ENABLE_ARDUINO_PRINT=0`
    Prevents pulling in heavy C++ standard library streams and strings.
 
+### RAM & Heap Monitoring Telemetry:
+To provide comprehensive visibility into ESP32 memory health without polling overhead, `systemInfo` exposes:
+- **`ESP.getHeapSize()` (`totalHeap`)**: The total dynamic DRAM allocated to the heap region (~327 KB).
+- **`ESP.getFreeHeap()` (`heap`)**: Instantaneous available bytes.
+- **`ESP.getMinFreeHeap()` (`minHeap`)**: Lowest recorded free memory since boot, pinpointing the peak memory usage watermark.
+- **`heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT)` (`maxAlloc`)**: Largest contiguous allocatable block, exposing memory fragmentation severity beyond a raw percentage.
+- **`heap_caps_get_free_size()` vs largest block (`frag`)**: Derived fragmentation percentage (`100 - (largest * 100 / free)`).
+
 ---
 
 ## 4. Frontend Runtime & Rendering Optimizations
@@ -89,3 +97,11 @@ Each clock card adopts a centered vertical flow:
 - Center: 140px analog clock dial
 - Bottom: 34px tabular digits, AM/PM tag, date, and timezone.
 This guarantees zero horizontal spillage or clipping on displays ranging from 320px mobile to desktop.
+
+### 5. Dedicated RAM & Heap Visualizer
+Inside the System Status section, a specialized nested `.ram-card` visualizes memory state:
+- **Adaptive Progress Track**: Dynamically transitions fill color:
+  - `< 70%`: Healthy Emerald (`var(--ok)`)
+  - `70% - 85%`: Elevated Amber (`var(--warn)`)
+  - `> 85%`: Critical Coral (`var(--bad)`)
+- **Sub-Grid Breakdowns**: Displays Free RAM, Peak Watermark (`Min Free`), Fragmentation %, and Maximum Allocatable Block without triggering mobile layout overflow.

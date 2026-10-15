@@ -12,13 +12,16 @@ A lightweight, self-hosted dual timezone world clock and real-time hardware tele
   - Day/Night status badges (`☀️ Day` / `🌙 Night`).
   - Live comparative time difference banner (`Bangkok is 11 hours ahead of New York`).
   - NTP synchronization status (`● NTP Synced` or `● Live Clock`).
-- **Hardware Telemetry Dashboard**:
-  - Real-time device metrics: Uptime, Free heap, Heap fragmentation %, IP address, Firmware version, and Filesystem usage.
+- **Hardware Telemetry & RAM Monitor**:
+  - Live system stats: Uptime, Firmware version, IP address, and Filesystem storage (`LittleFS`).
+  - Dedicated **RAM (Heap) Monitor**:
+    - Real-time memory utilization bar with dynamic status color thresholds (Green `< 70%`, Amber `70–85%`, Red `> 85%`).
+    - Exact heap statistics: Total dynamic RAM (~320 KB), Used RAM, Free RAM, Peak memory pressure watermark (`Min Free`), Fragmentation %, and Maximum allocatable contiguous block.
 - **Link Quality Indicator**:
   - Clean single-number signal panel displaying live RSSI in dBm with color-coded strength (`#3fb950`, `#d29922`, `#f85149`) and connection status pill.
 - **Ultra-Lean Embedded Footprint**:
   - Static RAM usage: **14.8%** (48.6 KB out of 320 KB).
-  - Web bundle payload: **~10.5 KB gzipped total** across HTML, CSS, and JS.
+  - Web bundle payload: **~11.0 KB gzipped total** across HTML, CSS, and JS (via `preact/compat` aliasing).
   - Zero dynamic heap fragmentation from web transfers.
 - **Serial Management Console**:
   - Non-blocking 115,200 baud command-line interface accessible via USB-Serial.
@@ -127,7 +130,7 @@ Connect via serial terminal (`115200` baud, newline ending) to configure or insp
 All responses return `application/json` with `Cache-Control: no-store`.
 
 ### `GET /api/health`
-Returns system telemetry, memory stats, filesystem usage, and NTP epoch.
+Returns system telemetry, RAM/heap statistics, filesystem usage, and NTP epoch.
 ```json
 {
   "ok": true,
@@ -135,6 +138,8 @@ Returns system telemetry, memory stats, filesystem usage, and NTP epoch.
   "uptime": 4242,
   "heap": 233760,
   "minHeap": 214804,
+  "totalHeap": 327680,
+  "maxAlloc": 114688,
   "frag": 39,
   "mode": "connected",
   "connected": true,
