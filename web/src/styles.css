@@ -3,10 +3,53 @@
   --bg: #000000;
   --card: #0d1117;
   --line: #21262d;
+  --border-sub: #161b22;
   --fg: #e6edf3;
   --dim: #8b949e;
   --ok: #3fb950;
+  --warn: #d29922;
   --bad: #f85149;
+  --box-bg: #030508;
+  --box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --dial-bg: #040608;
+  --dial-inner-ring: #161b22;
+  --dial-tick-major: #f0f6fc;
+  --dial-tick-hour: #8b949e;
+  --dial-tick-sub: #21262d;
+  --hand-hour: #f0f6fc;
+  --hand-min: #c9d1d9;
+  --dial-shadow: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+  --digits-color: #ffffff;
+  --sub-card-bg: rgba(22, 27, 34, 0.7);
+  --track-bg: #21262d;
+  --pill-bg: #21262d;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f8fa;
+  --card: #ffffff;
+  --line: #d0d7de;
+  --border-sub: #eaeef2;
+  --fg: #1f2328;
+  --dim: #656d76;
+  --ok: #1a7f37;
+  --warn: #9a6700;
+  --bad: #cf222e;
+  --box-bg: #f8fafc;
+  --box-shadow: 0 2px 10px rgba(31, 35, 40, 0.08);
+  --dial-bg: #ffffff;
+  --dial-inner-ring: #eaeef2;
+  --dial-tick-major: #1f2328;
+  --dial-tick-hour: #57606a;
+  --dial-tick-sub: #d0d7de;
+  --hand-hour: #1f2328;
+  --hand-min: #57606a;
+  --dial-shadow: drop-shadow(0 2px 8px rgba(31, 35, 40, 0.12));
+  --digits-color: #1f2328;
+  --sub-card-bg: #f6f8fa;
+  --track-bg: #eaeef2;
+  --pill-bg: #eaeef2;
 }
 
 * {
@@ -18,6 +61,7 @@ body {
   background: var(--bg);
   color: var(--fg);
   font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 main {
@@ -52,6 +96,7 @@ h2 {
   border-radius: 10px;
   padding: 16px;
   margin-bottom: 16px;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .app-header {
@@ -60,6 +105,8 @@ h2 {
   align-items: center;
   margin-bottom: 16px;
   padding: 16px 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .app-header h1 {
@@ -69,6 +116,37 @@ h2 {
 
 .app-header .sub {
   margin: 4px 0 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-toggle {
+  background: var(--pill-bg);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+  line-height: 1.4;
+}
+
+.theme-toggle:hover {
+  border-color: var(--dim);
+  transform: scale(1.03);
+}
+
+.theme-toggle:active {
+  transform: scale(0.97);
 }
 
 .grid {
@@ -105,9 +183,10 @@ h2 {
 .ram-card {
   margin-top: 14px;
   padding: 12px 14px;
-  background: rgba(22, 27, 34, 0.7);
-  border: 1px solid var(--border);
+  background: var(--sub-card-bg);
+  border: 1px solid var(--line);
   border-radius: 8px;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .ram-header {
@@ -135,7 +214,7 @@ h2 {
 
 .ram-track {
   height: 6px;
-  background: #21262d;
+  background: var(--track-bg);
   border-radius: 999px;
   overflow: hidden;
   margin-bottom: 12px;
@@ -163,8 +242,9 @@ h2 {
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
-  background: #21262d;
+  background: var(--pill-bg);
   color: var(--dim);
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .pill.on {
@@ -216,13 +296,14 @@ h2 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #030508;
+  background: var(--box-bg);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 20px 18px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--box-shadow);
   box-sizing: border-box;
   overflow: hidden;
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .clock-top {
@@ -232,7 +313,7 @@ h2 {
   width: 100%;
   margin-bottom: 14px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #161b22;
+  border-bottom: 1px solid var(--border-sub);
 }
 
 .clock-city {
@@ -246,16 +327,17 @@ h2 {
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 6px;
-  background: #161b22;
+  background: var(--pill-bg);
   color: var(--dim);
   font-weight: 500;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .clock-analog {
   width: 140px;
   height: 140px;
   margin: 4px auto 14px;
-  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+  filter: var(--dial-shadow);
 }
 
 .clock-content {
@@ -280,7 +362,8 @@ h2 {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  color: #ffffff;
+  color: var(--digits-color);
+  transition: color 0.25s ease;
 }
 
 .clock-ampm {
@@ -306,11 +389,12 @@ h2 {
   flex-wrap: wrap;
   gap: 8px;
   padding: 10px 14px;
-  background: #030508;
+  background: var(--box-bg);
   border: 1px solid var(--line);
   border-radius: 8px;
   font-size: 13px;
   color: var(--dim);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .clock-diff-highlight {

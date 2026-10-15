@@ -105,3 +105,9 @@ Inside the System Status section, a specialized nested `.ram-card` visualizes me
   - `70% - 85%`: Elevated Amber (`var(--warn)`)
   - `> 85%`: Critical Coral (`var(--bad)`)
 - **Sub-Grid Breakdowns**: Displays Free RAM, Peak Watermark (`Min Free`), Fragmentation %, and Maximum Allocatable Block without triggering mobile layout overflow.
+
+### 6. Dual Light/Dark Theme Engine
+- **Tokenized CSS Variables**: Global colors are defined under `:root` (dark default) and `[data-theme="light"]`.
+- **Analog Clock Scalability**: SVG dial elements, concentric border rings, indices, and watch hands bind to CSS variables (`var(--dial-bg)`, `var(--hand-hour)`, `var(--dial-tick-major)`), enabling seamless theme transitions without re-mounting or re-rendering SVG DOM nodes.
+- **Resilient Persistence**: Theme preference uses a fault-tolerant initialization chain:
+  `localStorage` -> `prefers-color-scheme` media query -> Dark default fallback. Safe for headless SSR/LinkeDOM.

@@ -153,7 +153,7 @@ const DIAL_TICKS = Array.from({ length: 60 }, (_, i) => {
       y1={y1}
       x2={x2}
       y2={y2}
-      stroke={isMajor ? '#f0f6fc' : isHour ? '#8b949e' : '#21262d'}
+      stroke={isMajor ? 'var(--dial-tick-major)' : isHour ? 'var(--dial-tick-hour)' : 'var(--dial-tick-sub)'}
       strokeWidth={isMajor ? 2.2 : isHour ? 1.5 : 0.8}
       strokeLinecap="round"
     />
@@ -211,8 +211,8 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
 
   return (
     <svg className="clock-analog" viewBox="0 0 100 100" role="img" aria-label="Analog clock">
-      <circle cx="50" cy="50" r="47" fill="#040608" stroke="var(--line)" strokeWidth="1.5" />
-      <circle cx="50" cy="50" r="45" fill="none" stroke="#161b22" strokeWidth="0.8" />
+      <circle cx="50" cy="50" r="47" fill="var(--dial-bg)" stroke="var(--line)" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="45" fill="none" stroke="var(--dial-inner-ring)" strokeWidth="0.8" />
       {DIAL_TICKS}
       {/* Hour hand */}
       <line
@@ -220,7 +220,7 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
         y1="50"
         x2="50"
         y2="24"
-        stroke="#f0f6fc"
+        stroke="var(--hand-hour)"
         strokeWidth="3.4"
         strokeLinecap="round"
         transform={`rotate(${hourAngle} 50 50)`}
@@ -231,7 +231,7 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
         y1="50"
         x2="50"
         y2="15"
-        stroke="#c9d1d9"
+        stroke="var(--hand-min)"
         strokeWidth="2.4"
         strokeLinecap="round"
         transform={`rotate(${minuteAngle} 50 50)`}
@@ -248,7 +248,7 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
         transform={`rotate(${secondAngle} 50 50)`}
       />
       <circle cx="50" cy="50" r="3.2" fill={accentColor} />
-      <circle cx="50" cy="50" r="1.3" fill="#000000" />
+      <circle cx="50" cy="50" r="1.3" fill="var(--dial-bg)" />
     </svg>
   )
 }
@@ -339,7 +339,30 @@ function DualClockPanel({ serverEpoch }: { serverEpoch?: number }) {
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null)
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const saved = window.localStorage.getItem('theme')
+        if (saved === 'dark' || saved === 'light') return saved
+        if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light'
+      }
+    } catch {}
+    return 'dark'
+  })
   const alive = useRef(true)
+
+  useEffect(() => {
+    try {
+      document.documentElement.setAttribute('data-theme', theme)
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('theme', theme)
+      }
+    } catch {}
+  }, [theme])
+
+  const toggleTheme = () => {
+    setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+  }
 
   useEffect(() => {
     return () => {
@@ -371,7 +394,18 @@ export default function App() {
           <h1>Bun Server</h1>
           <p className="sub">ESP32 self-hosted panel</p>
         </div>
-        <span className={`pill ${online ? 'on' : 'off'}`}>{online ? 'online' : 'offline'}</span>
+        <div className="header-actions">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+          </button>
+          <span className={`pill ${online ? 'on' : 'off'}`}>{online ? 'online' : 'offline'}</span>
+        </div>
       </header>
 
       <DualClockPanel serverEpoch={health?.epoch} />

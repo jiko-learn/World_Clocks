@@ -23,6 +23,10 @@ A lightweight, self-hosted dual timezone world clock and real-time hardware tele
   - Static RAM usage: **14.8%** (48.6 KB out of 320 KB).
   - Web bundle payload: **~11.0 KB gzipped total** across HTML, CSS, and JS (via `preact/compat` aliasing).
   - Zero dynamic heap fragmentation from web transfers.
+- **Adaptive Light & Dark Themes**:
+  - One-click instant theme toggle (`☀️ Light` / `🌙 Dark`) with smooth 250ms CSS color transitions.
+  - Automatically respects user OS system color scheme preference (`prefers-color-scheme`).
+  - Persistent preference storage via browser `localStorage`.
 - **Serial Management Console**:
   - Non-blocking 115,200 baud command-line interface accessible via USB-Serial.
 

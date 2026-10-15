@@ -116,6 +116,25 @@ if (ssidEl || hostEl) {
   console.log('  PASS  WiFi settings inputs removed from dashboard')
 }
 
+// Assert Theme Toggle works and sets data-theme="light"
+const themeBtn = document.querySelector('.theme-toggle')
+if (!themeBtn) {
+  failed += 1
+  console.log('  FAIL  Theme toggle button not found')
+} else {
+  console.log('  PASS  Theme toggle button found with text:', themeBtn.textContent?.trim())
+  // Test click to switch to light mode (needs bubbling in LinkeDOM)
+  themeBtn.dispatchEvent(new window.Event('click', { bubbles: true }))
+  await new Promise((r) => setTimeout(r, 50))
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light'
+  if (isLight && themeBtn.textContent?.includes('🌙')) {
+    console.log('  PASS  Successfully toggled to Light Theme (data-theme="light")')
+  } else {
+    failed += 1
+    console.log('  FAIL  Toggling theme failed, current data-theme:', document.documentElement.getAttribute('data-theme'))
+  }
+}
+
 console.log(`\n  bundle: ${jsName}  raw=${readFileSync(bundlePath).length} B  dom=${html.length} B`)
 
 if (failed > 0) {

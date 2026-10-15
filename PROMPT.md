@@ -38,9 +38,9 @@ Create an ESP32 self-hosted Dual Timezone World Clock & System Monitor project u
 
 ### 3. Frontend Web App (`web/`)
 - Stack: Vite + React + TypeScript, aliasing `react` and `react-dom` to `preact/compat`.
-- Single-page dark mode UI (`#000000` background, `#0d1117` cards, `#21262d` borders, `#3fb950` accent):
+- Dual-theme UI (Dark default with high-contrast `#000000` / `#0d1117`, and Light mode with crisp `#f6f8fa` / `#ffffff`):
   1. Top Header Card:
-     - Title "Bun Server", subtitle "ESP32 self-hosted panel", and live status pill (`● online` / `○ offline`).
+     - Title "Bun Server", subtitle "ESP32 self-hosted panel", interactive theme toggle button (`☀️ Light` / `🌙 Dark` with `localStorage` persistence and `prefers-color-scheme` support), and live status pill (`● online` / `○ offline`).
   2. Dual Timezone Clock Card:
      - Two clocks: Bangkok (Asia/Bangkok, UTC+7) and New York (America/New_York, UTC-4/5).
      - Structure per clock card:
