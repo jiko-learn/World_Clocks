@@ -27,12 +27,20 @@ void loop() {
                 static_cast<unsigned long>(uptimeSeconds()));
 }
 
+uint32_t totalHeap() {
+  return ESP.getHeapSize();
+}
+
 uint32_t freeHeap() {
   return ESP.getFreeHeap();
 }
 
 uint32_t minFreeHeap() {
   return ESP.getMinFreeHeap();
+}
+
+uint32_t maxAllocHeap() {
+  return heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
 }
 
 uint8_t fragmentation() {

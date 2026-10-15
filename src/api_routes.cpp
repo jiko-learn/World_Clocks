@@ -54,6 +54,8 @@ void handleHealth(AsyncWebServerRequest* request) {
   doc["uptime"] = systemInfo::uptimeSeconds();
   doc["heap"] = systemInfo::freeHeap();
   doc["minHeap"] = systemInfo::minFreeHeap();
+  doc["totalHeap"] = systemInfo::totalHeap();
+  doc["maxAlloc"] = systemInfo::maxAllocHeap();
   doc["frag"] = systemInfo::fragmentation();
   doc["mode"] = modeName();
   doc["connected"] = wifiManager::isConnected();

@@ -6,6 +6,8 @@ type Health = {
   uptime: number
   heap: number
   minHeap: number
+  totalHeap?: number
+  maxAlloc?: number
   frag: number
   mode: string
   connected: boolean
@@ -378,14 +380,45 @@ export default function App() {
         <h2>System status</h2>
         <div className="grid">
           <Field label="Uptime" value={fmtUptime(health?.uptime)} />
-          <Field label="Free heap" value={fmtBytes(health?.heap)} />
-          <Field label="Fragmentation" value={health ? `${health.frag}%` : '-'} />
-          <Field label="Address" value={health?.ip ?? '-'} />
           <Field label="Firmware" value={health?.fw ?? '-'} />
+          <Field label="Address" value={health?.ip ?? '-'} />
           <Field
             label="Filesystem"
             value={health?.fsTotal ? `${fmtBytes(health.fsUsed)} / ${fmtBytes(health.fsTotal)}` : '-'}
           />
+        </div>
+
+        <div className="ram-card">
+          <div className="ram-header">
+            <span className="ram-title">RAM (Heap)</span>
+            <span className="ram-meta">
+              {health?.totalHeap
+                ? `${fmtBytes(health.totalHeap - health.heap)} used / ${fmtBytes(health.totalHeap)} total (${Math.round(
+                    ((health.totalHeap - health.heap) * 100) / health.totalHeap,
+                  )}%)`
+                : `${fmtBytes(health?.heap)} free`}
+            </span>
+          </div>
+          <div className="ram-track">
+            <div
+              className="ram-fill"
+              style={{
+                width: `${health?.totalHeap ? Math.min(100, Math.max(0, Math.round(((health.totalHeap - health.heap) * 100) / health.totalHeap))) : 0}%`,
+                background:
+                  health?.totalHeap && (health.totalHeap - health.heap) / health.totalHeap > 0.85
+                    ? 'var(--bad)'
+                    : health?.totalHeap && (health.totalHeap - health.heap) / health.totalHeap > 0.7
+                      ? 'var(--warn)'
+                      : 'var(--ok)',
+              }}
+            />
+          </div>
+          <div className="ram-grid">
+            <Field label="Free RAM" value={fmtBytes(health?.heap)} />
+            <Field label="Min Free (Peak)" value={fmtBytes(health?.minHeap)} />
+            <Field label="Fragmentation" value={health ? `${health.frag}%` : '-'} />
+            <Field label="Max Alloc Block" value={fmtBytes(health?.maxAlloc)} />
+          </div>
         </div>
       </section>
 
