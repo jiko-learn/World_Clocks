@@ -108,21 +108,59 @@ const ZONES: ZoneConfig[] = [
   },
 ]
 
-function parseZoneParts(date: Date, timeZone: string) {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      hourCycle: 'h23',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      weekday: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZoneName: 'short',
-    }).formatToParts(date)
+const BKK_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'Asia/Bangkok',
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  weekday: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  timeZoneName: 'short',
+})
 
+const NYC_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  hourCycle: 'h23',
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+  weekday: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  timeZoneName: 'short',
+})
+
+const DIAL_TICKS = Array.from({ length: 60 }, (_, i) => {
+  const angle = (i * 6 * Math.PI) / 180
+  const isHour = i % 5 === 0
+  const isMajor = i % 15 === 0
+  const r1 = isMajor ? 34 : isHour ? 37 : 41.5
+  const r2 = 44
+  const x1 = 50 + r1 * Math.sin(angle)
+  const y1 = 50 - r1 * Math.cos(angle)
+  const x2 = 50 + r2 * Math.sin(angle)
+  const y2 = 50 - r2 * Math.cos(angle)
+  return (
+    <line
+      key={i}
+      x1={x1}
+      y1={y1}
+      x2={x2}
+      y2={y2}
+      stroke={isMajor ? '#f0f6fc' : isHour ? '#8b949e' : '#21262d'}
+      strokeWidth={isMajor ? 2.2 : isHour ? 1.5 : 0.8}
+      strokeLinecap="round"
+    />
+  )
+})
+
+function parseZoneParts(date: Date, formatter: Intl.DateTimeFormat, timeZone: string) {
+  try {
+    const parts = formatter.formatToParts(date)
     const map: Record<string, string> = {}
     for (const p of parts) {
       if (p.type !== 'literal') {
@@ -169,36 +207,11 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
   const minuteAngle = (m + s / 60) * 6
   const secondAngle = s * 6
 
-  // Detailed watch dial with 60 ticks
-  const ticks = Array.from({ length: 60 }, (_, i) => {
-    const angle = (i * 6 * Math.PI) / 180
-    const isHour = i % 5 === 0
-    const isMajor = i % 15 === 0
-    const r1 = isMajor ? 34 : isHour ? 37 : 41.5
-    const r2 = 44
-    const x1 = 50 + r1 * Math.sin(angle)
-    const y1 = 50 - r1 * Math.cos(angle)
-    const x2 = 50 + r2 * Math.sin(angle)
-    const y2 = 50 - r2 * Math.cos(angle)
-    return (
-      <line
-        key={i}
-        x1={x1}
-        y1={y1}
-        x2={x2}
-        y2={y2}
-        stroke={isMajor ? '#f0f6fc' : isHour ? '#8b949e' : '#21262d'}
-        strokeWidth={isMajor ? 2.2 : isHour ? 1.5 : 0.8}
-        strokeLinecap="round"
-      />
-    )
-  })
-
   return (
     <svg className="clock-analog" viewBox="0 0 100 100" role="img" aria-label="Analog clock">
       <circle cx="50" cy="50" r="47" fill="#040608" stroke="var(--line)" strokeWidth="1.5" />
       <circle cx="50" cy="50" r="45" fill="none" stroke="#161b22" strokeWidth="0.8" />
-      {ticks}
+      {DIAL_TICKS}
       {/* Hour hand */}
       <line
         x1="50"
@@ -255,8 +268,8 @@ function DualClockPanel({ serverEpoch }: { serverEpoch?: number }) {
     return () => window.clearInterval(timer)
   }, [])
 
-  const bkk = parseZoneParts(now, ZONES[0].timeZone)
-  const nyc = parseZoneParts(now, ZONES[1].timeZone)
+  const bkk = parseZoneParts(now, BKK_FORMATTER, ZONES[0].timeZone)
+  const nyc = parseZoneParts(now, NYC_FORMATTER, ZONES[1].timeZone)
   const diffHours = (bkk.h - nyc.h + 24) % 24
 
   return (

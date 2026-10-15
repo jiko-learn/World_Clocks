@@ -2,7 +2,6 @@
 
 #include "config_store.h"
 #include "console.h"
-#include "link_monitor.h"
 #include "system_info.h"
 #include "web_server.h"
 #include "wifi_manager.h"
@@ -21,7 +20,6 @@ void setup() {
 
   console::begin();
   systemInfo::begin();
-  linkMonitor::begin();
   wifiManager::begin();
   webServer::begin();
 }
@@ -29,7 +27,6 @@ void setup() {
 void loop() {
   console::loop();
   wifiManager::loop();
-  linkMonitor::loop();
   systemInfo::loop();
   delay(5);
 }

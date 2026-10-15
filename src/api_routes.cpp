@@ -1,7 +1,6 @@
 #include "api_routes.h"
 
 #include "config_store.h"
-#include "link_monitor.h"
 #include "system_info.h"
 #include "web_server.h"
 #include "wifi_manager.h"
@@ -19,7 +18,6 @@ constexpr const char* kFwVersion = "0.1.0";
 
 char replyBuffer[kReplyBuffer];
 char requestBuffer[1024];
-char linkBuffer[4096];
 
 void sendJson(AsyncWebServerRequest* request, JsonVariantConst doc,
               int code = 200) {
@@ -196,30 +194,10 @@ void handleWifiReset(AsyncWebServerRequest* request) {
 
 void handleLink(AsyncWebServerRequest* request) {
   JsonDocument doc;
-  doc["intervalMs"] = linkMonitor::sampleIntervalMs();
-  doc["reconnects"] = linkMonitor::reconnectCount();
-  doc["count"] = linkMonitor::count();
-
-  JsonArray arr = doc["samples"].to<JsonArray>();
-  const uint8_t count = linkMonitor::count();
-  for (uint8_t i = 0; i < count; ++i) {
-    const LinkSample s = linkMonitor::at(i);
-    JsonObject o = arr.add<JsonObject>();
-    o["rssi"] = static_cast<int>(s.rssi) - 100;
-    o["c"] = s.connected != 0;
-    o["m"] = s.state;
-    o["t"] = s.t;
-  }
-
-  const size_t len = serializeJson(doc, linkBuffer, sizeof(linkBuffer));
-  if (len == 0) {
-    request->send(500, kJson, "{\"error\":\"serialize_failed\"}");
-    return;
-  }
-  AsyncWebServerResponse* response = request->beginResponse(
-      200, kJson, reinterpret_cast<const uint8_t*>(linkBuffer), len);
-  response->addHeader("Cache-Control", "no-store");
-  request->send(response);
+  doc["rssi"] = wifiManager::isConnected() ? systemInfo::rssi() : 0;
+  doc["connected"] = wifiManager::isConnected();
+  doc["uptime"] = systemInfo::uptimeSeconds();
+  sendJson(request, doc);
 }
 
 void handleState(AsyncWebServerRequest* request) {
