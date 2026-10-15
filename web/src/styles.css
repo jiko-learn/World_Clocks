@@ -1,0 +1,289 @@
+:root {
+  color-scheme: dark;
+  --bg: #000000;
+  --card: #0d1117;
+  --line: #21262d;
+  --fg: #e6edf3;
+  --dim: #8b949e;
+  --ok: #3fb950;
+  --bad: #f85149;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+header {
+  margin-bottom: 20px;
+}
+
+h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+h2 {
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+
+.sub {
+  color: var(--dim);
+  font-size: 13px;
+  margin: 4px 0 10px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.k {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+.v {
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row span:first-child {
+  color: var(--dim);
+}
+
+.row span:last-child {
+  font-variant-numeric: tabular-nums;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #21262d;
+  color: var(--dim);
+}
+
+.pill.on {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--ok);
+}
+
+.pill.off {
+  background: rgba(248, 81, 73, 0.15);
+  color: var(--bad);
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--dim);
+  margin: 12px 0 4px;
+}
+
+input {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  font: inherit;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--ok);
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+button {
+  padding: 9px 16px;
+  background: var(--ok);
+  border: 0;
+  border-radius: 6px;
+  color: #06240c;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--dim);
+  font-weight: 500;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.msg {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--dim);
+  min-height: 1.2em;
+}
+
+.chart {
+  width: 100%;
+  height: 56px;
+  display: block;
+  margin: 8px 0 12px;
+}
+
+.chart .gridline {
+  stroke: var(--line);
+  stroke-width: 0.5;
+}
+
+/* Dual Timezone Clocks */
+.clock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.clock-header h2 {
+  margin: 0;
+}
+
+.clock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.clock-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #000000;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.clock-analog {
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+}
+
+.clock-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.clock-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.clock-city {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--fg);
+}
+
+.clock-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #161b22;
+  color: var(--dim);
+  font-weight: 500;
+}
+
+.clock-time-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.clock-digits {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+}
+
+.clock-ampm {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dim);
+}
+
+.clock-date {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.clock-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #000000;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.clock-diff-highlight {
+  color: var(--fg);
+  font-weight: 500;
+}

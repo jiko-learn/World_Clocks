@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../../esp32-learning"
+		},
+		{
+			"name": "bun server",
+			"path": "../bun server"
+		},
+		{
+			"name": "Bun_Server",
+			"path": "."
+		}
+	],
+	"settings": {}
+}
