@@ -50,9 +50,15 @@ function fmtUptime(s?: number): string {
 }
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { cache: 'no-store' })
-  if (!res.ok) throw new Error(`${url} -> ${res.status}`)
-  return (await res.json()) as T
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 3500)
+  try {
+    const res = await fetch(url, { cache: 'no-store', signal: controller.signal })
+    if (!res.ok) throw new Error(`${url} -> ${res.status}`)
+    return (await res.json()) as T
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
 }
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -136,28 +142,21 @@ const NYC_FORMATTER = new Intl.DateTimeFormat('en-US', {
   timeZoneName: 'short',
 })
 
-const DIAL_TICKS = Array.from({ length: 60 }, (_, i) => {
+const TICK_COORDS = Array.from({ length: 60 }, (_, i) => {
   const angle = (i * 6 * Math.PI) / 180
   const isHour = i % 5 === 0
   const isMajor = i % 15 === 0
   const r1 = isMajor ? 34 : isHour ? 37 : 41.5
   const r2 = 44
-  const x1 = 50 + r1 * Math.sin(angle)
-  const y1 = 50 - r1 * Math.cos(angle)
-  const x2 = 50 + r2 * Math.sin(angle)
-  const y2 = 50 - r2 * Math.cos(angle)
-  return (
-    <line
-      key={i}
-      x1={x1}
-      y1={y1}
-      x2={x2}
-      y2={y2}
-      stroke={isMajor ? 'var(--dial-tick-major)' : isHour ? 'var(--dial-tick-hour)' : 'var(--dial-tick-sub)'}
-      strokeWidth={isMajor ? 2.2 : isHour ? 1.5 : 0.8}
-      strokeLinecap="round"
-    />
-  )
+  return {
+    key: i,
+    x1: +(50 + r1 * Math.sin(angle)).toFixed(2),
+    y1: +(50 - r1 * Math.cos(angle)).toFixed(2),
+    x2: +(50 + r2 * Math.sin(angle)).toFixed(2),
+    y2: +(50 - r2 * Math.cos(angle)).toFixed(2),
+    stroke: isMajor ? 'var(--dial-tick-major)' : isHour ? 'var(--dial-tick-hour)' : 'var(--dial-tick-sub)',
+    strokeWidth: isMajor ? 2.2 : isHour ? 1.5 : 0.8,
+  }
 })
 
 function parseZoneParts(date: Date, formatter: Intl.DateTimeFormat, timeZone: string) {
@@ -204,22 +203,30 @@ function parseZoneParts(date: Date, formatter: Intl.DateTimeFormat, timeZone: st
   }
 }
 
-const STATIC_DIAL = (
-  <g>
-    <circle cx="50" cy="50" r="47" fill="var(--dial-bg)" stroke="var(--line)" strokeWidth="1.5" />
-    <circle cx="50" cy="50" r="45" fill="none" stroke="var(--dial-inner-ring)" strokeWidth="0.8" />
-    {DIAL_TICKS}
-  </g>
-)
-
 function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number; accentColor: string }) {
-  const hourAngle = ((h % 12) + m / 60 + s / 3600) * 30
-  const minuteAngle = (m + s / 60) * 6
-  const secondAngle = s * 6
+  const safeH = isNaN(h) ? 0 : h
+  const safeM = isNaN(m) ? 0 : m
+  const safeS = isNaN(s) ? 0 : s
+  const hourAngle = ((safeH % 12) + safeM / 60 + safeS / 3600) * 30
+  const minuteAngle = (safeM + safeS / 60) * 6
+  const secondAngle = safeS * 6
 
   return (
     <svg className="clock-analog" viewBox="0 0 100 100" role="img" aria-label="Analog clock">
-      {STATIC_DIAL}
+      <circle cx="50" cy="50" r="47" fill="var(--dial-bg)" stroke="var(--line)" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="45" fill="none" stroke="var(--dial-inner-ring)" strokeWidth="0.8" />
+      {TICK_COORDS.map((t) => (
+        <line
+          key={t.key}
+          x1={t.x1}
+          y1={t.y1}
+          x2={t.x2}
+          y2={t.y2}
+          stroke={t.stroke}
+          strokeWidth={t.strokeWidth}
+          strokeLinecap="round"
+        />
+      ))}
       {/* Hour hand */}
       <line
         x1="50"
