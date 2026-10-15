@@ -204,6 +204,14 @@ function parseZoneParts(date: Date, formatter: Intl.DateTimeFormat, timeZone: st
   }
 }
 
+const STATIC_DIAL = (
+  <g>
+    <circle cx="50" cy="50" r="47" fill="var(--dial-bg)" stroke="var(--line)" strokeWidth="1.5" />
+    <circle cx="50" cy="50" r="45" fill="none" stroke="var(--dial-inner-ring)" strokeWidth="0.8" />
+    {DIAL_TICKS}
+  </g>
+)
+
 function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number; accentColor: string }) {
   const hourAngle = ((h % 12) + m / 60 + s / 3600) * 30
   const minuteAngle = (m + s / 60) * 6
@@ -211,9 +219,7 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
 
   return (
     <svg className="clock-analog" viewBox="0 0 100 100" role="img" aria-label="Analog clock">
-      <circle cx="50" cy="50" r="47" fill="var(--dial-bg)" stroke="var(--line)" strokeWidth="1.5" />
-      <circle cx="50" cy="50" r="45" fill="none" stroke="var(--dial-inner-ring)" strokeWidth="0.8" />
-      {DIAL_TICKS}
+      {STATIC_DIAL}
       {/* Hour hand */}
       <line
         x1="50"
@@ -361,7 +367,17 @@ export default function App() {
   }, [theme])
 
   const toggleTheme = () => {
+    try {
+      document.documentElement.classList.add('theme-transition')
+    } catch {}
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+    if (typeof window !== 'undefined') {
+      window.setTimeout(() => {
+        try {
+          document.documentElement.classList.remove('theme-transition')
+        } catch {}
+      }, 300)
+    }
   }
 
   useEffect(() => {

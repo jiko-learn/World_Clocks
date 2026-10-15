@@ -55,16 +55,28 @@ void handleHealth(AsyncWebServerRequest* request) {
   doc["heap"] = systemInfo::freeHeap();
   doc["minHeap"] = systemInfo::minFreeHeap();
   doc["totalHeap"] = systemInfo::totalHeap();
-  doc["maxAlloc"] = systemInfo::maxAllocHeap();
-  doc["frag"] = systemInfo::fragmentation();
+  const uint32_t maxAlloc = systemInfo::maxAllocHeap();
+  doc["maxAlloc"] = maxAlloc;
+  doc["frag"] = systemInfo::fragmentation(maxAlloc);
   doc["mode"] = modeName();
   doc["connected"] = wifiManager::isConnected();
   doc["ip"] = wifiManager::ipString().c_str();
   doc["rssi"] = wifiManager::isConnected() ? systemInfo::rssi() : 0;
+
+  static unsigned long cachedFsUsed = 0;
+  static unsigned long cachedFsTotal = 0;
+  static uint32_t lastFsCheck = 0;
+  const uint32_t nowMs = millis();
   if (webServer::fsMounted()) {
-    doc["fsUsed"] = static_cast<unsigned long>(LittleFS.usedBytes());
-    doc["fsTotal"] = static_cast<unsigned long>(LittleFS.totalBytes());
+    if (cachedFsTotal == 0 || nowMs - lastFsCheck > 60000) {
+      cachedFsUsed = static_cast<unsigned long>(LittleFS.usedBytes());
+      cachedFsTotal = static_cast<unsigned long>(LittleFS.totalBytes());
+      lastFsCheck = nowMs;
+    }
+    doc["fsUsed"] = cachedFsUsed;
+    doc["fsTotal"] = cachedFsTotal;
   }
+
   const time_t now = time(nullptr);
   doc["epoch"] = (now > 1600000000) ? static_cast<uint32_t>(now) : 0;
   doc["timeSynced"] = (now > 1600000000);

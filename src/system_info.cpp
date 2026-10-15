@@ -43,12 +43,12 @@ uint32_t maxAllocHeap() {
   return heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
 }
 
-uint8_t fragmentation() {
+uint8_t fragmentation(size_t largestFree) {
   const size_t freeBytes = heap_caps_get_free_size(MALLOC_CAP_DEFAULT);
   if (freeBytes == 0) {
     return 0;
   }
-  const size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
+  const size_t largest = (largestFree > 0) ? largestFree : maxAllocHeap();
   return static_cast<uint8_t>(100 - (largest * 100 / freeBytes));
 }
 

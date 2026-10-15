@@ -18,7 +18,7 @@
   --dial-tick-sub: #21262d;
   --hand-hour: #f0f6fc;
   --hand-min: #c9d1d9;
-  --dial-shadow: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+  --dial-box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   --digits-color: #ffffff;
   --sub-card-bg: rgba(22, 27, 34, 0.7);
   --track-bg: #21262d;
@@ -45,11 +45,20 @@
   --dial-tick-sub: #d0d7de;
   --hand-hour: #1f2328;
   --hand-min: #57606a;
-  --dial-shadow: drop-shadow(0 2px 8px rgba(31, 35, 40, 0.12));
+  --dial-box-shadow: 0 2px 10px rgba(31, 35, 40, 0.12);
   --digits-color: #1f2328;
   --sub-card-bg: #f6f8fa;
   --track-bg: #eaeef2;
   --pill-bg: #eaeef2;
+}
+
+/* Theme switch transition only runs when toggled, never during regular clock ticking */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease !important;
+  transition-delay: 0s !important;
 }
 
 * {
@@ -61,7 +70,6 @@ body {
   background: var(--bg);
   color: var(--fg);
   font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
-  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 main {
@@ -96,7 +104,6 @@ h2 {
   border-radius: 10px;
   padding: 16px;
   margin-bottom: 16px;
-  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .app-header {
@@ -186,7 +193,6 @@ h2 {
   background: var(--sub-card-bg);
   border: 1px solid var(--line);
   border-radius: 8px;
-  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .ram-header {
@@ -244,7 +250,6 @@ h2 {
   font-weight: 600;
   background: var(--pill-bg);
   color: var(--dim);
-  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .pill.on {
@@ -303,7 +308,6 @@ h2 {
   box-shadow: var(--box-shadow);
   box-sizing: border-box;
   overflow: hidden;
-  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .clock-top {
@@ -330,14 +334,16 @@ h2 {
   background: var(--pill-bg);
   color: var(--dim);
   font-weight: 500;
-  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .clock-analog {
   width: 140px;
   height: 140px;
   margin: 4px auto 14px;
-  filter: var(--dial-shadow);
+  border-radius: 50%;
+  box-shadow: var(--dial-box-shadow);
+  display: block;
+  contain: layout paint;
 }
 
 .clock-content {
@@ -363,7 +369,6 @@ h2 {
   letter-spacing: -0.03em;
   line-height: 1.1;
   color: var(--digits-color);
-  transition: color 0.25s ease;
 }
 
 .clock-ampm {
@@ -394,7 +399,6 @@ h2 {
   border-radius: 8px;
   font-size: 13px;
   color: var(--dim);
-  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .clock-diff-highlight {
