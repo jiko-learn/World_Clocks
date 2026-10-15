@@ -169,6 +169,14 @@ Returns instantaneous signal strength and connection state.
 
 ---
 
+## Reproduction & Architecture
+
+- **[PROMPT.md](PROMPT.md)**: Turnkey prompt to regenerate this entire project from scratch in a fresh workspace.
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Technical deep-dive on flash partitioning, memory optimization, and SCons build hooks.
+
+---
+
 ## License
 
 MIT License. Feel free to adapt and customize for your own ESP32 projects.
+
