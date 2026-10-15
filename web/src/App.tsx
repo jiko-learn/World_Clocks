@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Health = {
   ok: boolean
@@ -17,30 +17,7 @@ type Health = {
   timeSynced?: boolean
 }
 
-type Config = {
-  ssid: string
-  hostname: string
-  hasPassword: boolean
-  useStaticIp: boolean
-}
-
-type LinkSample = { rssi: number; c: boolean; m: number }
-
-type LinkData = {
-  intervalMs: number
-  reconnects: number
-  count: number
-  samples: LinkSample[]
-}
-
-type Status = { kind: 'idle' } | { kind: 'busy' } | { kind: 'ok'; text: string } | { kind: 'err'; text: string }
-
 const POLL_MS = 5000
-
-// RSSI -> bar height. Floor/ceiling chosen to make ordinary variation
-// visible instead of a flat line pinned near the top.
-const RSSI_FLOOR = -90
-const RSSI_CEIL = -30
 
 function signalColor(rssi: number, connected: boolean): string {
   if (!connected) return '#f85149'
@@ -85,109 +62,26 @@ function Field({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Row({
-  label,
-  value,
-  valueStyle,
-}: {
-  label: string
-  value: React.ReactNode
-  valueStyle?: React.CSSProperties
-}) {
-  return (
-    <div className="row">
-      <span>{label}</span>
-      <span style={valueStyle}>{value}</span>
-    </div>
-  )
-}
-
-function LinkPanel({ data, health }: { data: LinkData | null; health: Health | null }) {
-  const currentRssi = health?.connected
-    ? health.rssi
-    : (data?.samples.length ? data.samples[data.samples.length - 1].rssi : undefined)
-  const isConnected = health ? health.connected : (data?.samples.length ? data.samples[data.samples.length - 1].c : false)
-
-  if (!data || data.samples.length === 0) {
-    return (
-      <section className="card">
-        <div className="card-header">
-          <h2>Link quality</h2>
-          <span className={`pill ${isConnected ? 'on' : 'off'}`}>
-            {isConnected && currentRssi !== undefined ? `${currentRssi} dBm` : 'offline'}
-          </span>
-        </div>
-        {health?.mode && <Row label="WiFi mode" value={health.mode} />}
-        <Row
-          label="Signal"
-          value={rssiLabel(currentRssi ?? -100, isConnected)}
-          valueStyle={{ color: signalColor(currentRssi ?? -100, isConnected) }}
-        />
-        <p className="sub">collecting samples…</p>
-      </section>
-    )
-  }
-
-  const samples = data.samples
-  const width = 320
-  const height = 56
-  const barW = width / Math.max(samples.length, 1)
-  const span = RSSI_CEIL - RSSI_FLOOR
-
-  const bars = samples.map((s, i) => {
-    const clamped = Math.max(RSSI_FLOOR, Math.min(RSSI_CEIL, s.rssi))
-    const h = ((clamped - RSSI_FLOOR) / span) * height
-    return (
-      <rect
-        key={i}
-        x={i * barW}
-        y={height - h}
-        width={Math.max(barW - 1, 0.6)}
-        height={h}
-        fill={signalColor(s.rssi, s.c)}
-      />
-    )
-  })
-
-  const connectedSamples = samples.filter((s) => s.c)
-  const avg =
-    connectedSamples.length > 0
-      ? Math.round(
-          connectedSamples.reduce((a, s) => a + s.rssi, 0) / connectedSamples.length,
-        )
-      : null
-  const worst = connectedSamples.length > 0
-    ? Math.min(...connectedSamples.map((s) => s.rssi))
-    : null
-  const offlineCount = samples.filter((s) => !s.c).length
+function LinkPanel({ health }: { health: Health | null }) {
+  const isConnected = Boolean(health?.connected)
+  const currentRssi = health?.rssi ?? -100
+  const color = signalColor(currentRssi, isConnected)
+  const label = rssiLabel(currentRssi, isConnected)
 
   return (
     <section className="card">
       <div className="card-header">
         <h2>Link quality</h2>
         <span className={`pill ${isConnected ? 'on' : 'off'}`}>
-          {isConnected && currentRssi !== undefined ? `${currentRssi} dBm` : 'offline'}
+          {isConnected ? 'connected' : 'offline'}
         </span>
       </div>
-      <p className="sub">
-        RSSI over the last {Math.round((samples.length * data.intervalMs) / 1000)}s · one sample
-        every {Math.round(data.intervalMs / 1000)}s
-      </p>
-      <svg className="chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img"
-        aria-label="Signal strength history">
-        <line x1="0" y1={height * 0.33} x2={width} y2={height * 0.33} className="gridline" />
-        <line x1="0" y1={height * 0.66} x2={width} y2={height * 0.66} className="gridline" />
-        {bars}
-      </svg>
-      <Row label="WiFi mode" value={health?.mode ?? '-'} />
-      <Row
-        label="Signal"
-        value={rssiLabel(currentRssi ?? -100, isConnected)}
-        valueStyle={{ color: signalColor(currentRssi ?? -100, isConnected), fontWeight: 600 }}
-      />
-      <Row label="Average / worst" value={avg === null ? '-' : `${avg} / ${worst} dBm`} />
-      <Row label="Offline samples" value={`${offlineCount} of ${samples.length}`} />
-      <Row label="Reconnects" value={String(data.reconnects)} />
+      <div className="field">
+        <div className="k">Signal</div>
+        <div className="v" style={{ color, fontWeight: 700 }}>
+          {label}
+        </div>
+      </div>
     </section>
   )
 }
@@ -422,12 +316,6 @@ function DualClockPanel({ serverEpoch }: { serverEpoch?: number }) {
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null)
-  const [link, setLink] = useState<LinkData | null>(null)
-  const [config, setConfig] = useState<Config | null>(null)
-  const [ssid, setSsid] = useState('')
-  const [pass, setPass] = useState('')
-  const [host, setHost] = useState('')
-  const [status, setStatus] = useState<Status>({ kind: 'idle' })
   const alive = useRef(true)
 
   useEffect(() => {
@@ -445,67 +333,10 @@ export default function App() {
       } catch {
         if (alive.current) setHealth(null)
       }
-      try {
-        const l = await getJson<LinkData>('/api/link')
-        if (alive.current) setLink(l)
-      } catch {
-        if (alive.current) setLink(null)
-      }
       timer = window.setTimeout(tick, POLL_MS)
     }
     void tick()
     return () => window.clearTimeout(timer)
-  }, [])
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const c = await getJson<Config>('/api/config')
-        if (!alive.current) return
-        setConfig(c)
-        setSsid(c.ssid ?? '')
-        setHost(c.hostname ?? '')
-      } catch {
-        /* panel still renders without it */
-      }
-    })()
-  }, [])
-
-  const save = useCallback(async () => {
-    setStatus({ kind: 'busy' })
-    try {
-      const res = await fetch('/api/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ssid, password: pass, hostname: host }),
-      })
-      const body = (await res.json()) as { ok?: boolean; error?: string; reconnecting?: boolean }
-      if (!res.ok || !body.ok) {
-        setStatus({ kind: 'err', text: `Error: ${body.error ?? res.status}` })
-        return
-      }
-      setPass('')
-      setStatus({
-        kind: 'ok',
-        text: body.reconnecting ? 'Saved. Reconnecting to WiFi...' : 'Saved.',
-      })
-    } catch {
-      setStatus({ kind: 'err', text: 'Error: request failed' })
-    }
-  }, [ssid, pass, host])
-
-  const forget = useCallback(async () => {
-    if (!window.confirm('Forget the saved WiFi network and start provisioning?')) return
-    setStatus({ kind: 'busy' })
-    try {
-      await fetch('/api/wifi/reset', { method: 'POST' })
-      setConfig(null)
-      setSsid('')
-      setPass('')
-      setStatus({ kind: 'ok', text: 'Credentials cleared. Device is provisioning.' })
-    } catch {
-      setStatus({ kind: 'err', text: 'Error: request failed' })
-    }
   }, [])
 
   const online = health !== null
@@ -535,33 +366,7 @@ export default function App() {
         </div>
       </section>
 
-      <LinkPanel data={link} health={health} />
-
-      <section className="card">
-        <h2>WiFi settings</h2>
-        <label htmlFor="ssid">SSID</label>
-        <input id="ssid" value={ssid} autoComplete="off" onChange={(e) => setSsid(e.target.value)} />
-        <label htmlFor="pass">Password</label>
-        <input
-          id="pass"
-          type="password"
-          value={pass}
-          autoComplete="new-password"
-          placeholder={config?.hasPassword ? 'unchanged' : ''}
-          onChange={(e) => setPass(e.target.value)}
-        />
-        <label htmlFor="host">Hostname</label>
-        <input id="host" value={host} autoComplete="off" onChange={(e) => setHost(e.target.value)} />
-        <div className="actions">
-          <button onClick={save} disabled={status.kind === 'busy'}>
-            Save and reconnect
-          </button>
-          <button className="ghost" onClick={forget} disabled={status.kind === 'busy'}>
-            Forget network
-          </button>
-        </div>
-        <div className="msg">{status.kind === 'ok' || status.kind === 'err' ? status.text : ''}</div>
-      </section>
+      <LinkPanel health={health} />
     </main>
   )
 }

@@ -89,17 +89,10 @@ const expectations = [
   ['heap value', '228.3 KB'],
   ['fragmentation', '39%'],
   ['address', '192.168.1.34'],
-  ['wifi mode', 'connected'],
   ['firmware', '0.1.0'],
   ['signal', '-56 dBm'],
   ['filesystem', '92.0 KB / 2.06 MB'],
-  ['save button', 'Save and reconnect'],
-  ['forget button', 'Forget network'],
   ['link panel heading', 'Link quality'],
-  ['link sample window', 'RSSI over the last'],
-  ['link average', '-64 / -80 dBm'],
-  ['link offline count', 'Offline samples1 of 4'],
-  ['link reconnects', 'Reconnects2'],
 ]
 
 let failed = 0
@@ -109,21 +102,16 @@ for (const [label, needle] of expectations) {
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${label}: "${needle}"`)
 }
 
-// Input values are properties, not text nodes, so assert them separately.
-const inputExpectations = [
-  ['ssid', 'ssid', 'ppk_true_wifi'],
-  ['hostname', 'host', 'bun-panel'],
-]
-for (const [label, id, needle] of inputExpectations) {
-  const el = document.getElementById(id)
-  const ok = Boolean(el) && el.value === needle
-  if (!ok) failed += 1
-  console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${label} input value: "${needle}"`)
+// Assert WiFi settings inputs are NOT present
+const ssidEl = document.getElementById('ssid')
+const hostEl = document.getElementById('host')
+if (ssidEl || hostEl) {
+  failed += 1
+  console.log('  FAIL  WiFi settings inputs should not exist on dashboard')
+} else {
+  console.log('  PASS  WiFi settings inputs removed from dashboard')
 }
 
-const bars = root.querySelectorAll('.chart rect').length
-const gridlines = root.querySelectorAll('.chart line').length
-console.log(`  chart: ${bars} bars, ${gridlines} gridlines`)
 console.log(`\n  bundle: ${jsName}  raw=${readFileSync(bundlePath).length} B  dom=${html.length} B`)
 
 if (failed > 0) {
