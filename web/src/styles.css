@@ -183,39 +183,57 @@ button:disabled {
   stroke-width: 0.5;
 }
 
-/* Dual Timezone Clocks */
-.clock-header {
+.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
 
+.card-header h2 {
+  margin: 0;
+}
+
+/* Dual Timezone Clocks */
+.clock-card {
+  padding: 20px;
+}
+
+.clock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
 .clock-header h2 {
   margin: 0;
+  font-size: 16px;
 }
 
 .clock-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .clock-box {
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: #000000;
+  gap: 20px;
+  background: #030508;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 14px;
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .clock-analog {
-  width: 92px;
-  height: 92px;
+  width: 140px;
+  height: 140px;
   flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
 .clock-content {
@@ -227,19 +245,20 @@ button:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2px;
+  margin-bottom: 6px;
 }
 
 .clock-city {
-  font-weight: 600;
-  font-size: 15px;
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.01em;
   color: var(--fg);
 }
 
 .clock-badge {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
   background: #161b22;
   color: var(--dim);
   font-weight: 500;
@@ -248,42 +267,67 @@ button:disabled {
 .clock-time-row {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  margin: 2px 0;
+  gap: 8px;
+  margin: 4px 0;
 }
 
 .clock-digits {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 34px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  color: var(--fg);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #ffffff;
 }
 
 .clock-ampm {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--dim);
 }
 
 .clock-date {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--dim);
+  margin-top: 4px;
 }
 
 .clock-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
-  background: #000000;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #030508;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 8px;
+  font-size: 13px;
   color: var(--dim);
 }
 
 .clock-diff-highlight {
   color: var(--fg);
-  font-weight: 500;
+  font-weight: 600;
 }
+
+@media (max-width: 520px) {
+  .clock-box {
+    flex-direction: column;
+    text-align: center;
+    gap: 14px;
+    padding: 16px;
+  }
+  .clock-top {
+    justify-content: center;
+    gap: 8px;
+  }
+  .clock-time-row {
+    justify-content: center;
+  }
+  .clock-analog {
+    width: 128px;
+    height: 128px;
+  }
+}
+

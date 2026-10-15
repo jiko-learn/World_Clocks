@@ -85,20 +85,44 @@ function Field({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  valueStyle,
+}: {
+  label: string
+  value: React.ReactNode
+  valueStyle?: React.CSSProperties
+}) {
   return (
     <div className="row">
       <span>{label}</span>
-      <span>{value}</span>
+      <span style={valueStyle}>{value}</span>
     </div>
   )
 }
 
-function LinkPanel({ data }: { data: LinkData | null }) {
+function LinkPanel({ data, health }: { data: LinkData | null; health: Health | null }) {
+  const currentRssi = health?.connected
+    ? health.rssi
+    : (data?.samples.length ? data.samples[data.samples.length - 1].rssi : undefined)
+  const isConnected = health ? health.connected : (data?.samples.length ? data.samples[data.samples.length - 1].c : false)
+
   if (!data || data.samples.length === 0) {
     return (
       <section className="card">
-        <h2>Link quality</h2>
+        <div className="card-header">
+          <h2>Link quality</h2>
+          <span className={`pill ${isConnected ? 'on' : 'off'}`}>
+            {isConnected && currentRssi !== undefined ? `${currentRssi} dBm` : 'offline'}
+          </span>
+        </div>
+        {health?.mode && <Row label="WiFi mode" value={health.mode} />}
+        <Row
+          label="Signal"
+          value={rssiLabel(currentRssi ?? -100, isConnected)}
+          valueStyle={{ color: signalColor(currentRssi ?? -100, isConnected) }}
+        />
         <p className="sub">collecting samples…</p>
       </section>
     )
@@ -139,7 +163,12 @@ function LinkPanel({ data }: { data: LinkData | null }) {
 
   return (
     <section className="card">
-      <h2>Link quality</h2>
+      <div className="card-header">
+        <h2>Link quality</h2>
+        <span className={`pill ${isConnected ? 'on' : 'off'}`}>
+          {isConnected && currentRssi !== undefined ? `${currentRssi} dBm` : 'offline'}
+        </span>
+      </div>
       <p className="sub">
         RSSI over the last {Math.round((samples.length * data.intervalMs) / 1000)}s · one sample
         every {Math.round(data.intervalMs / 1000)}s
@@ -150,26 +179,15 @@ function LinkPanel({ data }: { data: LinkData | null }) {
         <line x1="0" y1={height * 0.66} x2={width} y2={height * 0.66} className="gridline" />
         {bars}
       </svg>
-      <div className="row">
-        <span>Current</span>
-        <span>
-          {rssiLabel(samples[samples.length - 1].rssi, samples[samples.length - 1].c)}
-        </span>
-      </div>
-      <div className="row">
-        <span>Average / worst</span>
-        <span>
-          {avg === null ? '-' : `${avg} / ${worst} dBm`}
-        </span>
-      </div>
-      <div className="row">
-        <span>Offline samples</span>
-        <span>{offlineCount} of {samples.length}</span>
-      </div>
-      <div className="row">
-        <span>Reconnects</span>
-        <span>{data.reconnects}</span>
-      </div>
+      <Row label="WiFi mode" value={health?.mode ?? '-'} />
+      <Row
+        label="Signal"
+        value={rssiLabel(currentRssi ?? -100, isConnected)}
+        valueStyle={{ color: signalColor(currentRssi ?? -100, isConnected), fontWeight: 600 }}
+      />
+      <Row label="Average / worst" value={avg === null ? '-' : `${avg} / ${worst} dBm`} />
+      <Row label="Offline samples" value={`${offlineCount} of ${samples.length}`} />
+      <Row label="Reconnects" value={String(data.reconnects)} />
     </section>
   )
 }
@@ -257,10 +275,12 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
   const minuteAngle = (m + s / 60) * 6
   const secondAngle = s * 6
 
-  const ticks = Array.from({ length: 12 }, (_, i) => {
-    const angle = (i * 30 * Math.PI) / 180
-    const isMajor = i % 3 === 0
-    const r1 = isMajor ? 36 : 40
+  // Detailed watch dial with 60 ticks
+  const ticks = Array.from({ length: 60 }, (_, i) => {
+    const angle = (i * 6 * Math.PI) / 180
+    const isHour = i % 5 === 0
+    const isMajor = i % 15 === 0
+    const r1 = isMajor ? 34 : isHour ? 37 : 41.5
     const r2 = 44
     const x1 = 50 + r1 * Math.sin(angle)
     const y1 = 50 - r1 * Math.cos(angle)
@@ -273,8 +293,8 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
         y1={y1}
         x2={x2}
         y2={y2}
-        stroke={isMajor ? '#e6edf3' : '#30363d'}
-        strokeWidth={isMajor ? 1.8 : 1}
+        stroke={isMajor ? '#f0f6fc' : isHour ? '#8b949e' : '#21262d'}
+        strokeWidth={isMajor ? 2.2 : isHour ? 1.5 : 0.8}
         strokeLinecap="round"
       />
     )
@@ -282,40 +302,44 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
 
   return (
     <svg className="clock-analog" viewBox="0 0 100 100" role="img" aria-label="Analog clock">
-      <circle cx="50" cy="50" r="46" fill="#040608" stroke="var(--line)" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="47" fill="#040608" stroke="var(--line)" strokeWidth="1.5" />
+      <circle cx="50" cy="50" r="45" fill="none" stroke="#161b22" strokeWidth="0.8" />
       {ticks}
+      {/* Hour hand */}
       <line
         x1="50"
         y1="50"
         x2="50"
-        y2="26"
-        stroke="#e6edf3"
-        strokeWidth="3.2"
+        y2="24"
+        stroke="#f0f6fc"
+        strokeWidth="3.4"
         strokeLinecap="round"
         transform={`rotate(${hourAngle} 50 50)`}
       />
+      {/* Minute hand */}
       <line
         x1="50"
         y1="50"
         x2="50"
-        y2="16"
-        stroke="#8b949e"
-        strokeWidth="2.2"
+        y2="15"
+        stroke="#c9d1d9"
+        strokeWidth="2.4"
         strokeLinecap="round"
         transform={`rotate(${minuteAngle} 50 50)`}
       />
+      {/* Second hand with tail */}
       <line
         x1="50"
-        y1="57"
+        y1="58"
         x2="50"
-        y2="13"
+        y2="11"
         stroke={accentColor}
         strokeWidth="1.2"
         strokeLinecap="round"
         transform={`rotate(${secondAngle} 50 50)`}
       />
       <circle cx="50" cy="50" r="3.2" fill={accentColor} />
-      <circle cx="50" cy="50" r="1.2" fill="#000000" />
+      <circle cx="50" cy="50" r="1.3" fill="#000000" />
     </svg>
   )
 }
@@ -388,7 +412,7 @@ function DualClockPanel({ serverEpoch }: { serverEpoch?: number }) {
 
       <div className="clock-footer">
         <span>
-          Time Difference: <strong className="clock-diff-highlight">{bkk.city} is {diffHours} hours ahead</strong> of {nyc.city}
+          Time Difference: <strong className="clock-diff-highlight">{ZONES[0].city} is {diffHours} hours ahead</strong> of {ZONES[1].city}
         </span>
         <span>UTC+7 vs {nyc.tzName}</span>
       </div>
@@ -497,25 +521,21 @@ export default function App() {
       <DualClockPanel serverEpoch={health?.epoch} />
 
       <section className="card">
+        <h2>System status</h2>
         <div className="grid">
           <Field label="Uptime" value={fmtUptime(health?.uptime)} />
           <Field label="Free heap" value={fmtBytes(health?.heap)} />
           <Field label="Fragmentation" value={health ? `${health.frag}%` : '-'} />
           <Field label="Address" value={health?.ip ?? '-'} />
+          <Field label="Firmware" value={health?.fw ?? '-'} />
+          <Field
+            label="Filesystem"
+            value={health?.fsTotal ? `${fmtBytes(health.fsUsed)} / ${fmtBytes(health.fsTotal)}` : '-'}
+          />
         </div>
       </section>
 
-      <section className="card">
-        <Row label="WiFi mode" value={health?.mode ?? '-'} />
-        <Row label="Signal" value={health?.connected ? `${health.rssi} dBm` : '-'} />
-        <Row label="Firmware" value={health?.fw ?? '-'} />
-        <Row
-          label="Filesystem"
-          value={health?.fsTotal ? `${fmtBytes(health.fsUsed)} / ${fmtBytes(health.fsTotal)}` : '-'}
-        />
-      </section>
-
-      <LinkPanel data={link} />
+      <LinkPanel data={link} health={health} />
 
       <section className="card">
         <h2>WiFi settings</h2>

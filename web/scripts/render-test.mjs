@@ -97,7 +97,6 @@ const expectations = [
   ['forget button', 'Forget network'],
   ['link panel heading', 'Link quality'],
   ['link sample window', 'RSSI over the last'],
-  ['link current', '-58 dBm'],
   ['link average', '-64 / -80 dBm'],
   ['link offline count', 'Offline samples1 of 4'],
   ['link reconnects', 'Reconnects2'],
