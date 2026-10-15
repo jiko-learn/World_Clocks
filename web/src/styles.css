@@ -54,10 +54,32 @@ h2 {
   margin-bottom: 16px;
 }
 
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 16px 20px;
+}
+
+.app-header h1 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.app-header .sub {
+  margin: 4px 0 0;
+}
+
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
+}
+
+.field {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .k {
@@ -65,12 +87,18 @@ h2 {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .v {
-  font-size: 19px;
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
   margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .pill {
@@ -123,44 +151,37 @@ h2 {
 
 .clock-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
 
 .clock-box {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 20px;
   background: #030508;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 18px 20px;
+  padding: 20px 18px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-}
-
-.clock-analog {
-  width: 140px;
-  height: 140px;
-  flex-shrink: 0;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
-}
-
-.clock-content {
-  flex: 1;
-  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .clock-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  width: 100%;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #161b22;
 }
 
 .clock-city {
   font-weight: 700;
-  font-size: 19px;
+  font-size: 18px;
   letter-spacing: -0.01em;
   color: var(--fg);
 }
@@ -174,11 +195,27 @@ h2 {
   font-weight: 500;
 }
 
+.clock-analog {
+  width: 140px;
+  height: 140px;
+  margin: 4px auto 14px;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.6));
+}
+
+.clock-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
 .clock-time-row {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 8px;
-  margin: 4px 0;
+  margin: 2px 0 6px;
 }
 
 .clock-digits {
@@ -199,7 +236,11 @@ h2 {
 .clock-date {
   font-size: 13px;
   color: var(--dim);
-  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .clock-footer {
@@ -221,23 +262,4 @@ h2 {
   font-weight: 600;
 }
 
-@media (max-width: 520px) {
-  .clock-box {
-    flex-direction: column;
-    text-align: center;
-    gap: 14px;
-    padding: 16px;
-  }
-  .clock-top {
-    justify-content: center;
-    gap: 8px;
-  }
-  .clock-time-row {
-    justify-content: center;
-  }
-  .clock-analog {
-    width: 128px;
-    height: 128px;
-  }
-}
 

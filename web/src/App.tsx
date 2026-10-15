@@ -283,36 +283,44 @@ function DualClockPanel({ serverEpoch }: { serverEpoch?: number }) {
 
       <div className="clock-grid">
         <div className="clock-box">
+          <div className="clock-top">
+            <span className="clock-city">{ZONES[0].city}</span>
+            <span className="clock-badge">
+              {bkk.isDay ? '☀️ Day' : '🌙 Night'}
+            </span>
+          </div>
           <AnalogClock h={bkk.h} m={bkk.m} s={bkk.s} accentColor={ZONES[0].accentColor} />
           <div className="clock-content">
-            <div className="clock-top">
-              <span className="clock-city">{ZONES[0].city}</span>
-              <span className="clock-badge">
-                {bkk.isDay ? '☀️ Day' : '🌙 Night'} · {bkk.tzName}
-              </span>
-            </div>
             <div className="clock-time-row">
               <span className="clock-digits">{bkk.digits}</span>
               <span className="clock-ampm">{bkk.ampm}</span>
             </div>
-            <div className="clock-date">{bkk.dateStr}</div>
+            <div className="clock-date">
+              <span>{bkk.dateStr}</span>
+              <span>·</span>
+              <span>{bkk.tzName}</span>
+            </div>
           </div>
         </div>
 
         <div className="clock-box">
+          <div className="clock-top">
+            <span className="clock-city">{ZONES[1].city}</span>
+            <span className="clock-badge">
+              {nyc.isDay ? '☀️ Day' : '🌙 Night'}
+            </span>
+          </div>
           <AnalogClock h={nyc.h} m={nyc.m} s={nyc.s} accentColor={ZONES[1].accentColor} />
           <div className="clock-content">
-            <div className="clock-top">
-              <span className="clock-city">{ZONES[1].city}</span>
-              <span className="clock-badge">
-                {nyc.isDay ? '☀️ Day' : '🌙 Night'} · {nyc.tzName}
-              </span>
-            </div>
             <div className="clock-time-row">
               <span className="clock-digits">{nyc.digits}</span>
               <span className="clock-ampm">{nyc.ampm}</span>
             </div>
-            <div className="clock-date">{nyc.dateStr}</div>
+            <div className="clock-date">
+              <span>{nyc.dateStr}</span>
+              <span>·</span>
+              <span>{nyc.tzName}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -356,9 +364,11 @@ export default function App() {
 
   return (
     <main>
-      <header>
-        <h1>Bun Server</h1>
-        <p className="sub">ESP32 self-hosted panel</p>
+      <header className="card app-header">
+        <div className="header-info">
+          <h1>Bun Server</h1>
+          <p className="sub">ESP32 self-hosted panel</p>
+        </div>
         <span className={`pill ${online ? 'on' : 'off'}`}>{online ? 'online' : 'offline'}</span>
       </header>
 
