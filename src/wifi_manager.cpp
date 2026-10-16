@@ -5,6 +5,7 @@
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <WiFi.h>
+#include <esp_wifi.h>
 
 namespace {
 
@@ -27,6 +28,14 @@ DNSServer dnsServer;
 void tuneRadio() {
   WiFi.setSleep(false);
   WiFi.setTxPower(WIFI_POWER_17dBm);
+  wifi_country_t country = {};
+  country.cc[0] = 'T';
+  country.cc[1] = 'H';
+  country.cc[2] = '\0';
+  country.schan = 1;
+  country.nchan = 14;
+  country.policy = WIFI_COUNTRY_POLICY_MANUAL;
+  esp_wifi_set_country(&country);
 }
 
 void startMdns() {
@@ -45,6 +54,7 @@ void startMdns() {
 void applyStationConfig() {
   const DeviceConfig& cfg = configStore::get();
   WiFi.mode(WIFI_STA);
+  tuneRadio();
   WiFi.setHostname(cfg.hostname);
   if (cfg.useStaticIp) {
     WiFi.config(cfg.ip, cfg.gateway, cfg.subnet, cfg.dns);
@@ -94,10 +104,11 @@ void handleConnecting() {
     backoffMs = backoffMs * 2 > kMaxBackoffMs ? kMaxBackoffMs : backoffMs * 2;
     Serial.printf("[wifi] attempt %u failed, retrying in %lu ms\n", attempts,
                   static_cast<unsigned long>(backoffMs));
-    if (attempts == kMaxAttempts) {
+    if (attempts >= kMaxAttempts) {
       Serial.println(
-          "[wifi] still failing; will keep retrying (not switching to "
-          "provisioning, credentials are already stored)");
+          "[wifi] connection failed after max attempts; starting fallback provisioning AP (bun-setup at 192.168.4.1)");
+      wifiManager::startProvisioning();
+      return;
     }
 
     retryAt = now + backoffMs;
@@ -117,6 +128,16 @@ void handleConnecting() {
 namespace wifiManager {
 
 void begin() {
+  WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+    if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+      Serial.printf("[wifi] disconnected, reason=%u\n", info.wifi_sta_disconnected.reason);
+    } else if (event == ARDUINO_EVENT_WIFI_STA_CONNECTED) {
+      Serial.printf("[wifi] station connected to AP (ch=%u)\n", info.wifi_sta_connected.channel);
+    } else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+      Serial.printf("[wifi] got ip: %s\n", IPAddress(info.got_ip.ip_info.ip.addr).toString().c_str());
+    }
+  });
+
   if (configStore::hasCredentials()) {
     startConnecting();
   } else {

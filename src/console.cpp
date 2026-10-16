@@ -98,6 +98,8 @@ void execute(char* line) {
 
   if (strcmp(line, "scan") == 0) {
     Serial.println("[cmd] scanning...");
+    WiFi.disconnect();
+    delay(150);
     const int n = WiFi.scanNetworks(false, true);
     for (int i = 0; i < n; i++) {
       Serial.printf("[cmd] ch=%-3d rssi=%-4d ssid=%s\n", WiFi.channel(i),
@@ -105,6 +107,7 @@ void execute(char* line) {
     }
     WiFi.scanDelete();
     Serial.printf("[cmd] scan done, %d networks\n", n);
+    wifiManager::applyConfig();
     return;
   }
 
@@ -170,6 +173,7 @@ void handleLine() {
   if (lineLength == 0) {
     return;
   }
+  lineBuffer[lineLength] = '\0';
   execute(lineBuffer);
   lineLength = 0;
 }
