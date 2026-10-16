@@ -25,8 +25,11 @@ void setup() {
 }
 
 void loop() {
+  const uint32_t t0 = micros();
   console::loop();
   wifiManager::loop();
   systemInfo::loop();
+  const uint32_t workUs = micros() - t0;
+  systemInfo::recordWorkTime(workUs);
   delay(5);
 }

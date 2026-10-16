@@ -94,3 +94,23 @@ else:
 
     with open(STAMP, "w") as handle:
         handle.write(current)
+
+
+def patch_asyncwebserver():
+    resp_path = os.path.join(
+        PROJECT_DIR, ".pio", "libdeps", "esp32dev", "ESPAsyncWebServer", "src", "WebResponses.cpp"
+    )
+    if os.path.exists(resp_path):
+        with open(resp_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        target = "bool AsyncWebServerResponse::_finished() const {\n  return _state > RESPONSE_WAIT_ACK;\n}"
+        replacement = "bool AsyncWebServerResponse::_finished() const {\n  return (_state > RESPONSE_WAIT_ACK) && (_ackedLength >= _writtenLength);\n}"
+        if target in content:
+            content = content.replace(target, replacement)
+            with open(resp_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            print("[patch] applied _ackedLength ACK check to ESPAsyncWebServer")
+
+
+patch_asyncwebserver()
+

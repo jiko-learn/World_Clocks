@@ -49,14 +49,34 @@ const LINK = {
   ],
 }
 
-const jsName = readdirSync(join(dataDir, 'assets')).find((f) => f.endsWith('.js.gz'))
-if (!jsName) {
-  console.error('no built bundle found in data/assets - run `npm run build` first')
+import { existsSync } from 'node:fs'
+
+let jsCode = ''
+if (existsSync(join(dataDir, 'assets'))) {
+  const jsName = readdirSync(join(dataDir, 'assets')).find((f) => f.endsWith('.js.gz') || f.endsWith('.js'))
+  if (jsName) {
+    const raw = readFileSync(join(dataDir, 'assets', jsName))
+    jsCode = jsName.endsWith('.gz') ? gunzipSync(raw).toString('utf-8') : raw.toString('utf-8')
+  }
+}
+if (!jsCode && existsSync(join(dataDir, 'index.html.gz'))) {
+  const html = gunzipSync(readFileSync(join(dataDir, 'index.html.gz'))).toString('utf-8')
+  const startTag = '<script type="module">'
+  const start = html.indexOf(startTag)
+  const end = html.lastIndexOf('</script>')
+  if (start !== -1 && end > start) {
+    jsCode = html.substring(start + startTag.length, end)
+  }
+}
+
+if (!jsCode) {
+  console.error('no built bundle found in data/assets or data/index.html.gz - run `npm run build` first')
   process.exit(1)
 }
 
 const bundlePath = join(mkdtempSync(join(tmpdir(), 'bunweb-')), 'bundle.mjs')
-writeFileSync(bundlePath, gunzipSync(readFileSync(join(dataDir, 'assets', jsName))))
+writeFileSync(bundlePath, jsCode)
+
 
 const { window, document } = parseHTML(
   '<!doctype html><html><body><div id="root"></div></body></html>',
@@ -104,6 +124,7 @@ const expectations = [
   ['cpu title', 'CPU & Thermal'],
   ['cpu value', '12%'],
   ['temp value', '52.4°C'],
+  ['clock speed', '240 MHz'],
 ]
 
 let failed = 0
@@ -142,7 +163,7 @@ if (!themeBtn) {
   }
 }
 
-console.log(`\n  bundle: ${jsName}  raw=${readFileSync(bundlePath).length} B  dom=${html.length} B`)
+console.log(`\n  bundle: inlined  raw=${readFileSync(bundlePath).length} B  dom=${html.length} B`)
 
 if (failed > 0) {
   console.error(`\n${failed} expectation(s) failed. Rendered text:\n${text.slice(0, 600)}`)

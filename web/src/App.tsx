@@ -505,10 +505,10 @@ export default function App() {
             />
           </div>
           <div className="cpu-grid">
-            <Field label="Total CPU" value={health?.cpu !== undefined ? `${health.cpu}%` : '-'} />
-            <Field label="Core 0 (Sys)" value={health?.cpu0 !== undefined ? `${health.cpu0}%` : '-'} />
-            <Field label="Core 1 (App)" value={health?.cpu1 !== undefined ? `${health.cpu1}%` : '-'} />
+            <Field label="CPU Load" value={health?.cpu !== undefined ? `${health.cpu}%` : '-'} />
             <Field label="Chip Temp" value={health?.temp !== undefined ? `${health.temp.toFixed(1)}°C` : '-'} />
+            <Field label="Clock Speed" value="240 MHz" />
+            <Field label="Thermal Status" value={health?.temp !== undefined && health.temp > 75 ? 'Hot' : 'Normal'} />
           </div>
         </div>
       </section>

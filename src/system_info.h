@@ -6,6 +6,7 @@ namespace systemInfo {
 
 void begin();
 void loop();
+void recordWorkTime(uint32_t workMicros);
 
 uint32_t totalHeap();
 uint32_t freeHeap();
@@ -16,7 +17,5 @@ int8_t rssi();
 uint32_t uptimeSeconds();
 float chipTemperature();
 uint8_t cpuLoad();
-uint8_t cpuLoadCore0();
-uint8_t cpuLoadCore1();
 
 }
