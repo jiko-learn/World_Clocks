@@ -13,12 +13,14 @@ constexpr uint32_t kInitialBackoffMs = 1000;
 constexpr uint32_t kMaxBackoffMs = 30000;
 constexpr uint32_t kAttemptGraceMs = 20000;
 constexpr uint8_t kMaxAttempts = 5;
+constexpr uint32_t kLinkLostGraceMs = 5000;
 constexpr const char* kApSsid = "bun-setup";
 constexpr const char* kApPass = "bunpanel123";
 
 WifiMode currentMode = WifiMode::Idle;
 uint32_t attemptStartedAt = 0;
 uint32_t retryAt = 0;
+uint32_t linkLostAt = 0;
 uint32_t backoffMs = kInitialBackoffMs;
 uint8_t attempts = 0;
 bool waitingToRetry = false;
@@ -153,8 +155,15 @@ void loop() {
 
     case WifiMode::Connected:
       if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("[wifi] link lost, reconnecting");
-        startConnecting();
+        if (linkLostAt == 0) {
+          linkLostAt = millis();
+        } else if (millis() - linkLostAt > kLinkLostGraceMs) {
+          Serial.println("[wifi] link lost for >5s, reconnecting");
+          linkLostAt = 0;
+          startConnecting();
+        }
+      } else {
+        linkLostAt = 0;
       }
       break;
 

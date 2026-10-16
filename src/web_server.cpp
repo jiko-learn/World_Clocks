@@ -11,8 +11,11 @@ AsyncWebServer server(80);
 bool fsReady = false;
 
 void handleNotFound(AsyncWebServerRequest* request) {
-  if (request->url().startsWith("/api/")) {
-    request->send(404, "application/json", "{\"error\":\"not_found\"}");
+  const String& url = request->url();
+  if (url.startsWith("/api/") || url.startsWith("/assets/") ||
+      url.endsWith(".js") || url.endsWith(".css") || url.endsWith(".ico") ||
+      url.endsWith(".map") || url.endsWith(".png")) {
+    request->send(404, "text/plain", "Not found");
     return;
   }
   if (!fsReady) {
