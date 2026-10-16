@@ -17,6 +17,10 @@ type Health = {
   fsTotal?: number
   epoch?: number
   timeSynced?: boolean
+  temp?: number
+  cpu?: number
+  cpu0?: number
+  cpu1?: number
 }
 
 const POLL_MS = 5000
@@ -475,6 +479,36 @@ export default function App() {
             <Field label="Min Free (Peak)" value={fmtBytes(health?.minHeap)} />
             <Field label="Fragmentation" value={health ? `${health.frag}%` : '-'} />
             <Field label="Max Alloc Block" value={fmtBytes(health?.maxAlloc)} />
+          </div>
+        </div>
+
+        <div className="cpu-card">
+          <div className="cpu-header">
+            <span className="cpu-title">CPU & Thermal</span>
+            <span className="cpu-meta">
+              {health?.temp !== undefined ? `${health.temp.toFixed(1)}°C` : '-'} •{' '}
+              {health?.cpu !== undefined ? `${health.cpu}% Load` : '-'}
+            </span>
+          </div>
+          <div className="cpu-track">
+            <div
+              className="cpu-fill"
+              style={{
+                width: `${health?.cpu !== undefined ? Math.min(100, Math.max(0, health.cpu)) : 0}%`,
+                background:
+                  health?.cpu && health.cpu > 80
+                    ? 'var(--bad)'
+                    : health?.cpu && health.cpu > 50
+                      ? 'var(--warn)'
+                      : 'var(--ok)',
+              }}
+            />
+          </div>
+          <div className="cpu-grid">
+            <Field label="Total CPU" value={health?.cpu !== undefined ? `${health.cpu}%` : '-'} />
+            <Field label="Core 0 (Sys)" value={health?.cpu0 !== undefined ? `${health.cpu0}%` : '-'} />
+            <Field label="Core 1 (App)" value={health?.cpu1 !== undefined ? `${health.cpu1}%` : '-'} />
+            <Field label="Chip Temp" value={health?.temp !== undefined ? `${health.temp.toFixed(1)}°C` : '-'} />
           </div>
         </div>
       </section>

@@ -31,6 +31,10 @@ const HEALTH = {
   rssi: -56,
   fsUsed: 94208,
   fsTotal: 2162688,
+  temp: 52.4,
+  cpu: 12,
+  cpu0: 8,
+  cpu1: 16,
 }
 const CONFIG = { ssid: 'ppk_true_wifi', hostname: 'bun-panel', hasPassword: true, useStaticIp: false }
 const LINK = {
@@ -97,6 +101,9 @@ const expectations = [
   ['signal', '-56 dBm'],
   ['filesystem', '92.0 KB / 2.06 MB'],
   ['link panel heading', 'Link quality'],
+  ['cpu title', 'CPU & Thermal'],
+  ['cpu value', '12%'],
+  ['temp value', '52.4°C'],
 ]
 
 let failed = 0

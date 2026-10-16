@@ -14,5 +14,9 @@ uint32_t maxAllocHeap();
 uint8_t fragmentation(size_t largestFree = 0);
 int8_t rssi();
 uint32_t uptimeSeconds();
+float chipTemperature();
+uint8_t cpuLoad();
+uint8_t cpuLoadCore0();
+uint8_t cpuLoadCore1();
 
 }

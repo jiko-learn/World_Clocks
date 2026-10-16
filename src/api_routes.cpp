@@ -62,6 +62,10 @@ void handleHealth(AsyncWebServerRequest* request) {
   doc["connected"] = wifiManager::isConnected();
   doc["ip"] = wifiManager::ipString().c_str();
   doc["rssi"] = wifiManager::isConnected() ? systemInfo::rssi() : 0;
+  doc["temp"] = round(systemInfo::chipTemperature() * 10.0f) / 10.0f;
+  doc["cpu"] = systemInfo::cpuLoad();
+  doc["cpu0"] = systemInfo::cpuLoadCore0();
+  doc["cpu1"] = systemInfo::cpuLoadCore1();
 
   static unsigned long cachedFsUsed = 0;
   static unsigned long cachedFsTotal = 0;

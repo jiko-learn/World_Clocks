@@ -37,12 +37,14 @@ void handleShow() {
   Serial.printf("[cmd] ip=%s gw=%s mask=%s dns=%s\n", cfg.ip.toString().c_str(),
                 cfg.gateway.toString().c_str(), cfg.subnet.toString().c_str(),
                 cfg.dns.toString().c_str());
-  Serial.printf("[cmd] mode=%d ip=%s uptime=%lus heap=%lu frag=%u%%\n",
+  Serial.printf("[cmd] mode=%d ip=%s uptime=%lus heap=%lu frag=%u%% cpu=%u%% temp=%.1fC\n",
                 static_cast<int>(wifiManager::mode()),
                 wifiManager::ipString().c_str(),
                 static_cast<unsigned long>(systemInfo::uptimeSeconds()),
                 static_cast<unsigned long>(systemInfo::freeHeap()),
-                systemInfo::fragmentation());
+                systemInfo::fragmentation(),
+                systemInfo::cpuLoad(),
+                systemInfo::chipTemperature());
 }
 
 void execute(char* line) {
