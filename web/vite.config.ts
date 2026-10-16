@@ -56,7 +56,7 @@ const devMockPlugin = {
         res.end(
           JSON.stringify({
             ssid: 'ppk_true_wifi',
-            hostname: 'bun-panel',
+            hostname: 'bundle-panel',
             hasPassword: true,
             useStaticIp: false,
           })

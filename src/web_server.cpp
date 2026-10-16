@@ -4,6 +4,7 @@
 
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
+
 #include <vector>
 
 namespace {
@@ -12,7 +13,13 @@ AsyncWebServer server(80);
 bool fsReady = false;
 std::vector<uint8_t> indexGz;
 
+static const char* kIndexEtag = "\"bundle-v2\"";
+
 void sendIndex(AsyncWebServerRequest* request) {
+  if (request->client()) {
+    request->client()->setNoDelay(true);
+  }
+  Serial.printf("[web] sendIndex url='%s'\n", request->url().c_str());
   if (indexGz.empty()) {
     if (!fsReady) {
       request->send(503, "text/plain", "filesystem unavailable");
@@ -21,17 +28,42 @@ void sendIndex(AsyncWebServerRequest* request) {
     request->send(404, "text/plain", "index.html.gz not found");
     return;
   }
-  AsyncWebServerResponse* response = request->beginResponse_P(
-      200, "text/html", indexGz.data(), indexGz.size());
+  if (request->hasHeader("If-None-Match")) {
+    const AsyncWebHeader* inm = request->getHeader("If-None-Match");
+    if (inm && inm->value() == kIndexEtag) {
+      Serial.println("[web] ETag match -> 304");
+      request->send(304);
+      return;
+    }
+  }
+  AsyncWebServerResponse* response = request->beginResponse(
+      "text/html",
+      indexGz.size(),
+      [](uint8_t* buffer, size_t maxLen, size_t index) -> size_t {
+        if (index >= indexGz.size()) {
+          return 0;
+        }
+        const size_t len = std::min(maxLen, indexGz.size() - index);
+        memcpy(buffer, indexGz.data() + index, len);
+        return len;
+      });
   response->addHeader("Content-Encoding", "gzip");
-  response->addHeader("Cache-Control", "no-cache");
+  response->addHeader("ETag", kIndexEtag);
+  response->addHeader("Cache-Control", "public, max-age=3600");
   request->send(response);
+  Serial.printf("[web] sendIndex served %u bytes\n", static_cast<unsigned>(indexGz.size()));
 }
 
 void handleNotFound(AsyncWebServerRequest* request) {
   const String& url = request->url();
   if (url.startsWith("/api/")) {
     request->send(404, "application/json", "{\"error\":\"not_found\"}");
+    return;
+  }
+  if (url.endsWith(".ico") || url.endsWith(".png") || url.endsWith(".jpg") ||
+      url.endsWith(".svg") || url.endsWith(".map") || url.endsWith(".json") ||
+      url.endsWith(".txt")) {
+    request->send(404, "text/plain", "not found");
     return;
   }
   sendIndex(request);
@@ -66,12 +98,14 @@ bool begin() {
 
   apiRoutes::registerRoutes(server);
 
+  server.on("/ping", HTTP_GET, [](AsyncWebServerRequest* req) {
+    req->send(200, "text/plain", "pong");
+  });
+  server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest* req) {
+    req->send(204);
+  });
   server.on("/", HTTP_GET, sendIndex);
   server.on("/index.html", HTTP_GET, sendIndex);
-
-  server.serveStatic("/", LittleFS, "/")
-      .setDefaultFile("index.html")
-      .setCacheControl("public, max-age=600");
 
   server.onNotFound(handleNotFound);
 

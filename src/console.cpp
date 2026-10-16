@@ -31,12 +31,22 @@ void printUsage() {
 
 void handleShow() {
   const DeviceConfig& cfg = configStore::get();
-  Serial.printf("[cmd] ssid=%s password=%s host=%s staticIp=%d\n", cfg.ssid,
-                cfg.password[0] ? "<set>" : "<empty>", cfg.hostname,
+  Serial.printf("[cmd] ssid='%s' pass_len=%u host='%s' staticIp=%d\n", cfg.ssid,
+                static_cast<unsigned>(strlen(cfg.password)), cfg.hostname,
                 cfg.useStaticIp ? 1 : 0);
+  Serial.print("[cmd] pass_hex: ");
+  for (size_t i = 0; i < strlen(cfg.password); ++i) {
+    Serial.printf("%02x ", static_cast<uint8_t>(cfg.password[i]));
+  }
+  Serial.println();
   Serial.printf("[cmd] ip=%s gw=%s mask=%s dns=%s\n", cfg.ip.toString().c_str(),
                 cfg.gateway.toString().c_str(), cfg.subnet.toString().c_str(),
                 cfg.dns.toString().c_str());
+  Serial.printf("[cmd] live: ip=%s gw=%s mask=%s mac=%s\n",
+                WiFi.localIP().toString().c_str(),
+                WiFi.gatewayIP().toString().c_str(),
+                WiFi.subnetMask().toString().c_str(),
+                WiFi.macAddress().c_str());
   Serial.printf("[cmd] mode=%d ip=%s uptime=%lus heap=%lu frag=%u%% cpu=%u%% temp=%.1fC\n",
                 static_cast<int>(wifiManager::mode()),
                 wifiManager::ipString().c_str(),
@@ -104,8 +114,10 @@ void execute(char* line) {
     delay(150);
     const int n = WiFi.scanNetworks(false, true);
     for (int i = 0; i < n; i++) {
-      Serial.printf("[cmd] ch=%-3d rssi=%-4d ssid=%s\n", WiFi.channel(i),
-                    WiFi.RSSI(i), WiFi.SSID(i).c_str());
+      Serial.printf("[cmd] ch=%-2d rssi=%-4d enc=%d bssid=%s ssid=%s\n",
+                    WiFi.channel(i), WiFi.RSSI(i),
+                    static_cast<int>(WiFi.encryptionType(i)),
+                    WiFi.BSSIDstr(i).c_str(), WiFi.SSID(i).c_str());
     }
     WiFi.scanDelete();
     Serial.printf("[cmd] scan done, %d networks\n", n);
@@ -121,17 +133,21 @@ void execute(char* line) {
     const char* psName = (ps == WIFI_PS_NONE)     ? "NONE"
                          : (ps == WIFI_PS_MIN_MODEM) ? "MIN_MODEM"
                                                     : "MAX_MODEM";
-    Serial.printf("[cmd] radio: ps=%s txPower=17dBm status=%d rssi=%d\n", psName,
+    wifi_country_t country = {};
+    esp_wifi_get_country(&country);
+    Serial.printf("[cmd] radio: ps=%s txPower=17dBm status=%d rssi=%d cc=%.2s schan=%d nchan=%d\n", psName,
                   static_cast<int>(WiFi.status()),
-                  wifiManager::isConnected() ? WiFi.RSSI() : 0);
+                  wifiManager::isConnected() ? WiFi.RSSI() : 0,
+                  country.cc, country.schan, country.nchan);
     return;
   }
 
   if (strcmp(line, "fstest") == 0) {
     uint32_t t0 = millis();
-    fs::File f = LittleFS.open("/index.html", FILE_READ);
+    const char* target = LittleFS.exists("/index.html.gz") ? "/index.html.gz" : "/index.html";
+    fs::File f = LittleFS.open(target, FILE_READ);
     uint32_t t1 = millis();
-    Serial.printf("[cmd] open=%d took=%lums\n", f ? 1 : 0,
+    Serial.printf("[cmd] file=%s open=%d took=%lums\n", target, f ? 1 : 0,
                   static_cast<unsigned long>(t1 - t0));
     if (f) {
       const size_t size = f.size();
@@ -145,7 +161,7 @@ void execute(char* line) {
       f.close();
       Serial.println("[cmd] fstest ok");
     } else {
-      Serial.println("[cmd] fstest FAILED: cannot open /index.html");
+      Serial.printf("[cmd] fstest FAILED: cannot open %s\n", target);
     }
     return;
   }

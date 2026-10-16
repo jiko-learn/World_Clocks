@@ -107,9 +107,22 @@ def patch_asyncwebserver():
         replacement = "bool AsyncWebServerResponse::_finished() const {\n  return (_state > RESPONSE_WAIT_ACK) && (_ackedLength >= _writtenLength);\n}"
         if target in content:
             content = content.replace(target, replacement)
-            with open(resp_path, "w", encoding="utf-8") as f:
-                f.write(content)
             print("[patch] applied _ackedLength ACK check to ESPAsyncWebServer")
+
+        target2 = "    size_t const pcb_written = request->client()->add(_assembled_headers.c_str() + _writtenHeadersLength, _assembled_headers.length() - _writtenHeadersLength);\n    _writtenLength += pcb_written;\n    _writtenHeadersLength += pcb_written;"
+        replacement2 = "    size_t const pcb_written = request->client()->add(_assembled_headers.c_str() + _writtenHeadersLength, _assembled_headers.length() - _writtenHeadersLength);\n    _writtenHeadersLength += pcb_written;\n    if (_writtenHeadersLength < _assembled_headers.length()) {\n#if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT\n      _in_flight += pcb_written;\n      --_in_flight_credit;  // take a credit\n#endif\n      _writtenLength += pcb_written;"
+        old_part = "    size_t const pcb_written = request->client()->add(_assembled_headers.c_str() + _writtenHeadersLength, _assembled_headers.length() - _writtenHeadersLength);\n    _writtenLength += pcb_written;\n    _writtenHeadersLength += pcb_written;\n    if (_writtenHeadersLength < _assembled_headers.length()) {"
+        if old_part in content:
+            content = content.replace(old_part, replacement2)
+            print("[patch] fixed header double-counting in ESPAsyncWebServer")
+        partial_target = "        if (added_len != _send_buffer_len - _send_buffer_offset) {\n          // we were not able to add entire buffer's content to tcp buffs, leave it for later\n          // (this should not happen normally unless connection's TCP window suddenly changed from remote or mem pressure)\n          _send_buffer_offset += added_len;\n          break;\n        } else {\n          _send_buffer_len = _send_buffer_offset = 0;  // consider buffer empty\n        }\n        payloadlen += added_len;"
+        partial_replacement = "        payloadlen += added_len;\n        if (added_len != _send_buffer_len - _send_buffer_offset) {\n          // we were not able to add entire buffer's content to tcp buffs, leave it for later\n          // (this should not happen normally unless connection's TCP window suddenly changed from remote or mem pressure)\n          _send_buffer_offset += added_len;\n          break;\n        } else {\n          _send_buffer_len = _send_buffer_offset = 0;  // consider buffer empty\n        }"
+        if partial_target in content:
+            content = content.replace(partial_target, partial_replacement)
+            print("[patch] fixed partial write accounting in ESPAsyncWebServer")
+
+        with open(resp_path, "w", encoding="utf-8") as f:
+            f.write(content)
 
 
 patch_asyncwebserver()

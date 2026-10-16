@@ -5,17 +5,18 @@
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <WiFi.h>
+#include <esp_netif.h>
 #include <esp_wifi.h>
 
 namespace {
 
-constexpr uint32_t kInitialBackoffMs = 1000;
+constexpr uint32_t kInitialBackoffMs = 3000;
 constexpr uint32_t kMaxBackoffMs = 30000;
-constexpr uint32_t kAttemptGraceMs = 20000;
+constexpr uint32_t kAttemptGraceMs = 15000;
 constexpr uint8_t kMaxAttempts = 5;
-constexpr uint32_t kLinkLostGraceMs = 5000;
-constexpr const char* kApSsid = "bun-setup";
-constexpr const char* kApPass = "bunpanel123";
+constexpr uint32_t kLinkLostGraceMs = 15000;
+constexpr const char* kApSsid = "bundle-setup";
+constexpr const char* kApPass = "bundlepanel123";
 
 WifiMode currentMode = WifiMode::Idle;
 uint32_t attemptStartedAt = 0;
@@ -55,20 +56,25 @@ void startMdns() {
 
 void applyStationConfig() {
   const DeviceConfig& cfg = configStore::get();
+  WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
-  tuneRadio();
+  WiFi.setSleep(false);
   WiFi.setHostname(cfg.hostname);
   if (cfg.useStaticIp) {
     WiFi.config(cfg.ip, cfg.gateway, cfg.subnet, cfg.dns);
   } else {
-    WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0),
-                IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
+    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    if (netif) {
+      esp_netif_dhcpc_start(netif);
+    }
   }
-  WiFi.setAutoReconnect(true);
+  WiFi.setAutoReconnect(false);
 }
 
 void beginAttempt() {
   const DeviceConfig& cfg = configStore::get();
+  Serial.printf("[wifi] beginAttempt ssid='%s' pass_len=%u\n", cfg.ssid, strlen(cfg.password));
+  tuneRadio();
   WiFi.begin(cfg.ssid, cfg.password);
   attemptStartedAt = millis();
   waitingToRetry = false;
@@ -87,6 +93,7 @@ void handleConnecting() {
   if (WiFi.status() == WL_CONNECTED) {
     currentMode = WifiMode::Connected;
     tuneRadio();
+    esp_wifi_set_ps(WIFI_PS_NONE);
     startMdns();
     configTime(0, 0, "pool.ntp.org", "time.google.com", "time.cloudflare.com");
     Serial.printf("[wifi] connected, ip=%s (NTP started)\n", wifiManager::ipString().c_str());
@@ -108,9 +115,9 @@ void handleConnecting() {
                   static_cast<unsigned long>(backoffMs));
     if (attempts >= kMaxAttempts) {
       Serial.println(
-          "[wifi] connection failed after max attempts; starting fallback provisioning AP (bun-setup at 192.168.4.1)");
-      wifiManager::startProvisioning();
-      return;
+          "[wifi] still failing; will keep retrying in background (credentials are stored)");
+      attempts = 0;
+      backoffMs = kMaxBackoffMs;
     }
 
     retryAt = now + backoffMs;
@@ -136,6 +143,7 @@ void begin() {
     } else if (event == ARDUINO_EVENT_WIFI_STA_CONNECTED) {
       Serial.printf("[wifi] station connected to AP (ch=%u)\n", info.wifi_sta_connected.channel);
     } else if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+      esp_wifi_set_ps(WIFI_PS_NONE);
       Serial.printf("[wifi] got ip: %s\n", IPAddress(info.got_ip.ip_info.ip.addr).toString().c_str());
     }
   });
@@ -158,7 +166,7 @@ void loop() {
         if (linkLostAt == 0) {
           linkLostAt = millis();
         } else if (millis() - linkLostAt > kLinkLostGraceMs) {
-          Serial.println("[wifi] link lost for >5s, reconnecting");
+          Serial.println("[wifi] link lost for >15s, reconnecting");
           linkLostAt = 0;
           startConnecting();
         }

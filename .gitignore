@@ -11,3 +11,5 @@ web/.build-stamp
 data/
 .cache/
 compile_commands.json
+.coverage
+*.coverage

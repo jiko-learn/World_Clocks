@@ -1,6 +1,7 @@
 #include "system_info.h"
 
 #include <WiFi.h>
+#include <esp_freertos_hooks.h>
 #include <esp_heap_caps.h>
 
 namespace {
@@ -8,44 +9,112 @@ namespace {
 constexpr uint32_t kLogIntervalMs = 30000;
 uint32_t lastLogAt = 0;
 
-uint32_t workMicrosAccum = 0;
+volatile uint32_t idleTicksCore0 = 0;
+volatile uint32_t idleTicksCore1 = 0;
+uint32_t prevIdleTicks0 = 0;
+uint32_t prevIdleTicks1 = 0;
+uint32_t baselineIdle0 = 0;
+uint32_t baselineIdle1 = 0;
 uint32_t lastCpuSampleAt = 0;
 uint8_t currentCpuLoad = 0;
-float cachedChipTemp = 38.0f;
+
+float cachedChipTemp = 0.0f;
 uint32_t lastTempSampleAt = 0;
 
+bool idleHookCore0() {
+  idleTicksCore0++;
+  return true;
 }
+
+bool idleHookCore1() {
+  idleTicksCore1++;
+  return true;
+}
+
+void updateCpuLoad(uint32_t elapsedMs) {
+  if (elapsedMs == 0) {
+    return;
+  }
+
+  const uint32_t t0 = idleTicksCore0;
+  const uint32_t t1 = idleTicksCore1;
+  const uint32_t delta0 = t0 - prevIdleTicks0;
+  const uint32_t delta1 = t1 - prevIdleTicks1;
+  prevIdleTicks0 = t0;
+  prevIdleTicks1 = t1;
+
+  // Rate normalized to 1000ms
+  const uint32_t rate0 = (delta0 * 1000) / elapsedMs;
+  const uint32_t rate1 = (delta1 * 1000) / elapsedMs;
+
+  // Dynamically record peak idle loops as 100% idle baseline
+  if (rate0 > baselineIdle0) {
+    baselineIdle0 = rate0;
+  }
+  if (rate1 > baselineIdle1) {
+    baselineIdle1 = rate1;
+  }
+
+  int load0 = 0;
+  if (baselineIdle0 > 0) {
+    load0 = 100 - static_cast<int>((static_cast<uint64_t>(rate0) * 100ULL) / baselineIdle0);
+    if (load0 < 0) load0 = 0;
+    if (load0 > 100) load0 = 100;
+  }
+
+  int load1 = 0;
+  if (baselineIdle1 > 0) {
+    load1 = 100 - static_cast<int>((static_cast<uint64_t>(rate1) * 100ULL) / baselineIdle1);
+    if (load1 < 0) load1 = 0;
+    if (load1 > 100) load1 = 100;
+  }
+
+  currentCpuLoad = static_cast<uint8_t>((load0 + load1) / 2);
+}
+
+void updateTemperature() {
+  const float raw = temperatureRead();
+  if (raw > 0.0f && raw < 120.0f) {
+    if (cachedChipTemp <= 0.0f) {
+      cachedChipTemp = raw;
+    } else {
+      cachedChipTemp = (0.7f * cachedChipTemp) + (0.3f * raw);
+    }
+  }
+}
+
+}  // namespace
 
 namespace systemInfo {
 
 void begin() {
   lastLogAt = millis();
   lastCpuSampleAt = millis();
-  lastTempSampleAt = 0;
-  workMicrosAccum = 0;
+  lastTempSampleAt = millis();
+
+  esp_register_freertos_idle_hook_for_cpu(idleHookCore0, 0);
+  esp_register_freertos_idle_hook_for_cpu(idleHookCore1, 1);
+
+  updateTemperature();
 }
 
-void recordWorkTime(uint32_t workMicros) {
-  workMicrosAccum += workMicros;
+void recordWorkTime(uint32_t /*workMicros*/) {
+  // Retained for API compatibility; FreeRTOS idle hook tracks true dual-core load
 }
 
 void loop() {
   const uint32_t now = millis();
   const uint32_t elapsedCpu = now - lastCpuSampleAt;
+
   if (elapsedCpu >= 1000) {
-    const uint64_t totalAvailableMicros = static_cast<uint64_t>(elapsedCpu) * 1000ULL;
-    if (totalAvailableMicros > 0) {
-      uint32_t load = static_cast<uint32_t>((static_cast<uint64_t>(workMicrosAccum) * 100ULL) / totalAvailableMicros);
-      currentCpuLoad = (load > 100) ? 100 : static_cast<uint8_t>(load);
-    }
-    workMicrosAccum = 0;
     lastCpuSampleAt = now;
+    updateCpuLoad(elapsedCpu);
   }
 
-  // Note: ESP32 internal TSENS shares SAR ADC2 with Wi-Fi PHY.
-  // Calling temperatureRead() while Wi-Fi is active disrupts RF and causes packet loss.
-  // We keep cachedChipTemp at an initial safe value or sample only if Wi-Fi is idle.
-  (void)now;
+  if (now - lastTempSampleAt >= 2000) {
+    lastTempSampleAt = now;
+    updateTemperature();
+  }
 
   if (now - lastLogAt < kLogIntervalMs) {
     return;

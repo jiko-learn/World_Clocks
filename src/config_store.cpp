@@ -5,7 +5,7 @@
 
 namespace {
 
-constexpr const char* kNamespace = "bunpanel";
+constexpr const char* kNamespace = "bundlepanel";
 constexpr const char* kKeyBlob = "cfg";
 constexpr const char* kKeyVersion = "ver";
 
@@ -15,7 +15,7 @@ DeviceConfig defaults() {
   DeviceConfig c;
   strlcpy(c.ssid, "", sizeof(c.ssid));
   strlcpy(c.password, "", sizeof(c.password));
-  strlcpy(c.hostname, "bun-panel", sizeof(c.hostname));
+  strlcpy(c.hostname, "bundle-panel", sizeof(c.hostname));
   c.useStaticIp = false;
   c.ip = IPAddress(0, 0, 0, 0);
   c.gateway = IPAddress(0, 0, 0, 0);
@@ -28,15 +28,27 @@ DeviceConfig defaults() {
 DeviceConfig load() {
   DeviceConfig c = defaults();
   Preferences p;
-  if (!p.begin(kNamespace, true)) {
-    return c;
+  bool loaded = false;
+  if (p.begin(kNamespace, true)) {
+    const uint16_t stored = p.getUShort(kKeyVersion, 0);
+    if (stored == kConfigVersion) {
+      p.getBytes(kKeyBlob, &c, sizeof(c));
+      c.version = kConfigVersion;
+      loaded = true;
+    }
+    p.end();
   }
-  const uint16_t stored = p.getUShort(kKeyVersion, 0);
-  if (stored == kConfigVersion) {
-    p.getBytes(kKeyBlob, &c, sizeof(c));
-    c.version = kConfigVersion;
+  if (!loaded) {
+    if (p.begin("bunpanel", true)) {
+      const uint16_t stored = p.getUShort(kKeyVersion, 0);
+      if (stored == kConfigVersion) {
+        p.getBytes(kKeyBlob, &c, sizeof(c));
+        c.version = kConfigVersion;
+        loaded = true;
+      }
+      p.end();
+    }
   }
-  p.end();
   return c;
 }
 

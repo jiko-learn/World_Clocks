@@ -8,7 +8,7 @@
 			"path": "../bun server"
 		},
 		{
-			"name": "Bun_Server",
+			"name": "Bundle_Server",
 			"path": "."
 		}
 	],

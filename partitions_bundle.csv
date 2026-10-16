@@ -1,4 +1,4 @@
-# Bun_Server partition table (4MB WROOM)
+# Bundle_Server partition table (4MB WROOM)
 #
 # OTA is out of scope, so the default table wastes 1.25MB on a second app
 # slot that cannot be used. This trades it for a bigger app + bigger FS:

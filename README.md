@@ -1,32 +1,43 @@
 # ESP32 World Clocks & System Telemetry Server
 
-A lightweight, self-hosted dual timezone world clock and real-time hardware telemetry dashboard for the ESP32. The web frontend is built with modern Vite and Preact, pre-compressed with gzip, and served asynchronously directly from the ESP32's onboard LittleFS flash memory.
+A lightweight, self-hosted dual timezone world clock and real-time hardware telemetry dashboard for the ESP32. Built with Vite, Preact, and TypeScript, pre-compressed with gzip, and served asynchronously from onboard LittleFS flash memory.
+
+Designed with **`ui-ux-pro-max`** design standards: Swiss minimalism, OLED Dark Mode, tactile Slate Light Mode, and Bento-Box telemetry architecture.
 
 ---
 
 ## Features
 
 - **Luxury Dual Timezone Clocks**:
-  - Live analog dials (140px custom SVG) with 60-tick watch dials, cardinal indices (12, 3, 6, 9), styled hour/minute hands, and counterbalanced accent second hands.
-  - Large 34px bold digital tabular readout with AM/PM tag, day of the week, date, and timezone (`Asia/Bangkok` & `America/New_York`).
-  - Day/Night status badges (`☀️ Day` / `🌙 Night`).
-  - Live comparative time difference banner (`Bangkok is 11 hours ahead of New York`).
+  - Live analog dials (148px custom SVG) with 60-tick watch dials, cardinal indices (12, 3, 6, 9), styled hour/minute hands, and counterbalanced accent second hands.
+  - Large 36px bold digital tabular readout with AM/PM tag, day of the week, date, and timezone (`Asia/Bangkok` & `America/New_York`).
+  - Day/Night status badges with bespoke inline SVGs (`☀️ Day` / `🌙 Night`).
+  - Live comparative time difference banner (`Bangkok is 11 hours ahead of New York · UTC+7 vs EDT/EST`).
   - NTP synchronization status (`● NTP Synced` or `● Live Clock`).
+- **Chip Temperature & CPU Load Telemetry (Feature Instrument)**:
+  - **Dynamic Thermal Scale Gauge (0°C to 100°C)**:
+    - Multi-zone gradient track: Cool blue (<45°C), Emerald green (45–60°C), Amber (60–75°C), Alert coral (>75°C).
+    - Real-time needle marker tracking temperature.
+    - Dual-unit display: Primary Celsius (`38.0°C`) with live Fahrenheit conversion (`100.4°F`).
+    - Thermal status indicator: `Cool`, `Nominal`, `Warm`, `Hot`.
+    - Session thermal stats: Lowest recorded, Peak recorded, and Silicon limit (`Tjunction Max: 110°C`).
+  - **Dedicated CPU Cores Load Meter**:
+    - Real-time CPU percentage progress bar (`0–100%`) with adaptive warning thresholds.
+    - 240 MHz dual-core clock frequency readout.
 - **Hardware Telemetry & RAM Monitor**:
   - Live system stats: Uptime, Firmware version, IP address, and Filesystem storage (`LittleFS`).
   - Dedicated **RAM (Heap) Monitor**:
     - Real-time memory utilization bar with dynamic status color thresholds (Green `< 70%`, Amber `70–85%`, Red `> 85%`).
     - Exact heap statistics: Total dynamic RAM (~320 KB), Used RAM, Free RAM, Peak memory pressure watermark (`Min Free`), Fragmentation %, and Maximum allocatable contiguous block.
-- **Link Quality Indicator**:
-  - Clean single-number signal panel displaying live RSSI in dBm with color-coded strength (`#3fb950`, `#d29922`, `#f85149`) and connection status pill.
-- **Ultra-Lean Embedded Footprint**:
-  - Static RAM usage: **14.8%** (48.6 KB out of 320 KB).
-  - Web bundle payload: **~11.0 KB gzipped total** across HTML, CSS, and JS (via `preact/compat` aliasing).
-  - Zero dynamic heap fragmentation from web transfers.
-- **Adaptive Light & Dark Themes**:
-  - One-click instant theme toggle (`☀️ Light` / `🌙 Dark`) with smooth 250ms CSS color transitions.
-  - Automatically respects user OS system color scheme preference (`prefers-color-scheme`).
+- **Link Quality & WiFi Panel**:
+  - 4-bar dynamic SVG WiFi signal indicator with live RSSI in dBm, link quality rating, and pulsing status dot.
+- **Adaptive Light & Dark Themes (Anti-Glare / High Contrast)**:
+  - **OLED Dark Mode**: Deep `#090d16` canvas with `#111827` cards and electric cyan/emerald accents.
+  - **Tactile Slate Light Mode**: Soft titanium-slate `#ebedf2` canvas with `#ffffff` cards and brushed metallic dials—eliminates washed-out white zones and provides high contrast (WCAG AAA/AA).
   - Persistent preference storage via browser `localStorage`.
+- **Ultra-Lean Embedded Footprint**:
+  - Web bundle payload: **~14.9 KB gzipped total** across HTML, CSS, and JS inlined into a single file. Loads in a single TCP packet.
+  - Zero dynamic heap fragmentation from web transfers.
 - **Serial Management Console**:
   - Non-blocking 115,200 baud command-line interface accessible via USB-Serial.
 
@@ -45,7 +56,7 @@ A lightweight, self-hosted dual timezone world clock and real-time hardware tele
 ```
 World_Clocks/
 ├── platformio.ini           # PlatformIO configuration & library pinning
-├── partitions_bun.csv       # Custom 4MB partition table (2.06MB LittleFS)
+├── partitions_bundle.csv    # Custom 4MB partition table (2.06MB LittleFS)
 ├── scripts/
 │   └── build_web.py         # SCons pre-build hook automating npm build
 ├── src/
@@ -54,23 +65,21 @@ World_Clocks/
 │   ├── web_server.h/.cpp    # ESPAsyncWebServer setup & static file routing
 │   ├── wifi_manager.h/.cpp  # WiFi STA & AP provisioning management
 │   ├── config_store.h/.cpp  # NVS (Preferences) credential storage
-│   ├── system_info.h/.cpp   # Memory & hardware metrics collector
+│   ├── system_info.h/.cpp   # Memory, CPU load & temperature collector
 │   └── console.h/.cpp       # 115200 baud serial interactive CLI
 ├── web/                     # Frontend client (Vite + Preact + TypeScript)
 │   ├── src/
-│   │   ├── App.tsx          # Main dashboard component
+│   │   ├── App.tsx          # Main dashboard component with Thermal Gauge
 │   │   ├── main.tsx         # Preact DOM mount
-│   │   └── styles.css       # Lean dark-mode stylesheet (2.9 KB)
+│   │   └── styles.css       # Design-system stylesheet with Dark/Light modes
 │   ├── scripts/
-│   │   ├── gzip.mjs         # Asset pre-compression script
+│   │   ├── gzip.mjs         # Inlines CSS/JS into single index.html.gz
 │   │   └── render-test.mjs  # Headless LinkeDOM automated test suite
 │   ├── vite.config.ts       # Vite config with React-to-Preact aliases
 │   └── package.json
-└── data/                    # LittleFS root containing pre-gzipped web bundle
-    ├── index.html.gz
-    └── assets/
-        ├── index-*.js.gz
-        └── style-*.css.gz
+├── data/                    # LittleFS root containing single inlined index.html.gz
+│   └── index.html.gz
+└── .agents/skills/          # Installed agent skills (ui-ux-pro-max, caveman)
 ```
 
 ---
@@ -100,92 +109,9 @@ Plug your ESP32 board into USB, then run:
 # Build the web bundle and LittleFS filesystem image, then flash filesystem
 pio run -t uploadfs
 
-# Compile and upload firmware binary
+# Build and flash C++ firmware binary
 pio run -t upload
-```
 
-### 4. Open Serial Monitor
-
-```bash
+# Open serial monitor
 pio device monitor -b 115200
 ```
-
----
-
-## Serial Console Commands
-
-Connect via serial terminal (`115200` baud, newline ending) to configure or inspect the board:
-
-| Command | Description | Example |
-| :--- | :--- | :--- |
-| `show` | Display current network configuration and hardware status | `show` |
-| `ssid <name>` | Set target WiFi network SSID and reconnect | `ssid MyHomeWifi` |
-| `pass <key>` | Set target WiFi password and reconnect | `pass Secret123` |
-| `host <name>` | Set mDNS hostname | `host world-clocks` |
-| `scan` | Scan and list visible WiFi access points with RSSI | `scan` |
-| `radio` | Inspect power save mode, TX power, and current RSSI | `radio` |
-| `reset` | Clear saved WiFi credentials and enter provisioning mode | `reset` |
-| `reboot` | Perform software restart | `reboot` |
-
----
-
-## REST API Reference
-
-All responses return `application/json` with `Cache-Control: no-store`.
-
-### `GET /api/health`
-Returns system telemetry, RAM/heap statistics, filesystem usage, and NTP epoch.
-```json
-{
-  "ok": true,
-  "fw": "0.1.0",
-  "uptime": 4242,
-  "heap": 233760,
-  "minHeap": 214804,
-  "totalHeap": 327680,
-  "maxAlloc": 114688,
-  "frag": 39,
-  "mode": "connected",
-  "connected": true,
-  "ip": "192.168.1.34",
-  "rssi": -56,
-  "fsUsed": 94208,
-  "fsTotal": 2162688,
-  "epoch": 1776307200,
-  "timeSynced": true
-}
-```
-
-### `GET /api/time`
-Returns current UNIX epoch and sync status.
-```json
-{
-  "epoch": 1776307200,
-  "synced": true,
-  "uptime": 4242
-}
-```
-
-### `GET /api/link`
-Returns instantaneous signal strength and connection state.
-```json
-{
-  "rssi": -56,
-  "connected": true,
-  "uptime": 4242
-}
-```
-
----
-
-## Reproduction & Architecture
-
-- **[PROMPT.md](PROMPT.md)**: Turnkey prompt to regenerate this entire project from scratch in a fresh workspace.
-- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Technical deep-dive on flash partitioning, memory optimization, and SCons build hooks.
-
----
-
-## License
-
-MIT License. Feel free to adapt and customize for your own ESP32 projects.
-

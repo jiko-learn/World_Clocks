@@ -36,7 +36,7 @@ const HEALTH = {
   cpu0: 8,
   cpu1: 16,
 }
-const CONFIG = { ssid: 'ppk_true_wifi', hostname: 'bun-panel', hasPassword: true, useStaticIp: false }
+const CONFIG = { ssid: 'ppk_true_wifi', hostname: 'bundle-panel', hasPassword: true, useStaticIp: false }
 const LINK = {
   intervalMs: 5000,
   reconnects: 2,
@@ -74,13 +74,21 @@ if (!jsCode) {
   process.exit(1)
 }
 
-const bundlePath = join(mkdtempSync(join(tmpdir(), 'bunweb-')), 'bundle.mjs')
+const bundlePath = join(mkdtempSync(join(tmpdir(), 'bundleweb-')), 'bundle.mjs')
 writeFileSync(bundlePath, jsCode)
 
 
 const { window, document } = parseHTML(
   '<!doctype html><html><body><div id="root"></div></body></html>',
 )
+
+const memStorage = new Map()
+globalThis.localStorage = {
+  getItem: (k) => memStorage.get(k) ?? null,
+  setItem: (k, v) => memStorage.set(k, String(v)),
+  removeItem: (k) => memStorage.delete(k),
+  clear: () => memStorage.clear(),
+}
 
 globalThis.window = window
 globalThis.document = document
@@ -97,6 +105,18 @@ globalThis.fetch = async (url) => {
   let body = CONFIG
   if (target.includes('/api/health')) body = HEALTH
   else if (target.includes('/api/link')) body = LINK
+  else if (target.includes('gold-api.com')) {
+    body = {
+      currency: 'USD',
+      currencySymbol: '$',
+      exchangeRate: 1.0,
+      name: 'Gold',
+      price: 4183.5,
+      symbol: 'XAU',
+      updatedAt: '2026-10-16T09:30:19Z',
+      updatedAtReadable: 'a few seconds ago',
+    }
+  }
   return { ok: true, status: 200, json: async () => body }
 }
 
@@ -110,7 +130,7 @@ const text = root.textContent || ''
 const html = root.innerHTML || ''
 
 const expectations = [
-  ['heading', 'Bun Server'],
+  ['heading', 'Bundle Server'],
   ['uptime value', '1h 10m'],
   ['heap value', '228.3 KB'],
   ['ram title', 'RAM (Heap)'],
@@ -125,6 +145,11 @@ const expectations = [
   ['cpu value', '12%'],
   ['temp value', '52.4°C'],
   ['clock speed', '240 MHz'],
+  ['gold heading', 'Live Gold Price'],
+  ['gold symbol', 'XAU / USD'],
+  ['gold sync badge', '⏱ 30m sync'],
+  ['gold chart title', '7D Price Movement'],
+  ['gold chart timeline', 'Now'],
 ]
 
 let failed = 0
