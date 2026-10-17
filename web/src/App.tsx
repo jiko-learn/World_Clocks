@@ -65,6 +65,40 @@ async function getJson<T>(url: string): Promise<T> {
   }
 }
 
+async function putJson<T>(url: string, body: unknown): Promise<T> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 10000)
+  try {
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    if (!res.ok) throw new Error(`${url} -> ${res.status}`)
+    return (await res.json()) as T
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 10000)
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    if (!res.ok) throw new Error(`${url} -> ${res.status}`)
+    return (await res.json()) as T
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 function WifiBars({ rssi, connected }: { rssi: number; connected: boolean }) {
   const activeBars = !connected ? 0 : rssi >= -55 ? 4 : rssi >= -67 ? 3 : rssi >= -78 ? 2 : 1
   const color = signalColor(rssi, connected)
@@ -88,7 +122,7 @@ function Field({ label, value, sub }: { label: string; value: string; sub?: stri
   )
 }
 
-function LinkPanel({ health }: { health: Health | null }) {
+function LinkPanel({ health, onOpenWifi }: { health: Health | null; onOpenWifi?: () => void }) {
   const isConnected = Boolean(health?.connected)
   const currentRssi = health?.rssi ?? -100
   const color = signalColor(currentRssi, isConnected)
@@ -115,10 +149,17 @@ function LinkPanel({ health }: { health: Health | null }) {
           </div>
           <h2>Link quality</h2>
         </div>
-        <span className={`pill ${isConnected ? 'on' : 'off'}`}>
-          <span className="dot" />
-          {isConnected ? 'connected' : 'offline'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onOpenWifi && (
+            <button type="button" className="btn-link-wifi" onClick={onOpenWifi} style={{ marginTop: 0 }}>
+              📶 Wi-Fi Setup
+            </button>
+          )}
+          <span className={`pill ${isConnected ? 'on' : 'off'}`}>
+            <span className="dot" />
+            {isConnected ? 'connected' : 'offline'}
+          </span>
+        </div>
       </div>
       <div className="link-body">
         <div className="link-meter">
@@ -1025,8 +1066,289 @@ function DualClockPanel({ serverEpoch }: { serverEpoch?: number }) {
   )
 }
 
+type ScannedNetwork = {
+  ssid: string
+  rssi: number
+  secure: boolean
+  channel: number
+}
+
+function WifiSetupModal({
+  isOpen,
+  onClose,
+  health,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  health: Health | null
+}) {
+  const [networks, setNetworks] = useState<ScannedNetwork[]>([])
+  const [scanning, setScanning] = useState(false)
+  const [ssid, setSsid] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [status, setStatus] = useState<{ text: string; type: 'info' | 'success' | 'error' } | null>(null)
+  const [connecting, setConnecting] = useState(false)
+
+  const doScan = async (force = false) => {
+    setScanning(true)
+    setStatus({ text: 'Scanning for nearby 2.4GHz Wi-Fi networks...', type: 'info' })
+    try {
+      const res = force
+        ? await postJson<{ ok: boolean; scanning: boolean; networks: ScannedNetwork[] }>('/api/wifi/scan', {})
+        : await getJson<{ ok: boolean; scanning: boolean; networks: ScannedNetwork[] }>('/api/wifi/scan')
+
+      if (res.scanning) {
+        setTimeout(async () => {
+          try {
+            const poll = await getJson<{ ok: boolean; scanning: boolean; networks: ScannedNetwork[] }>('/api/wifi/scan')
+            setNetworks(poll.networks || [])
+            setScanning(false)
+            setStatus({ text: `Found ${poll.networks?.length ?? 0} nearby networks.`, type: 'info' })
+          } catch {
+            setScanning(false)
+          }
+        }, 2200)
+      } else {
+        setNetworks(res.networks || [])
+        setScanning(false)
+        setStatus({ text: `Found ${res.networks?.length ?? 0} nearby networks.`, type: 'info' })
+      }
+    } catch (e: any) {
+      setScanning(false)
+      setStatus({ text: 'Scan failed: ' + (e?.message || 'Network error'), type: 'error' })
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      void doScan(true)
+    }
+  }, [isOpen])
+
+  const handleConnect = async (e: any) => {
+    e.preventDefault()
+    if (!ssid.trim()) {
+      setStatus({ text: 'Please enter or pick an SSID.', type: 'error' })
+      return
+    }
+    setConnecting(true)
+    setStatus({
+      text: `Applying credentials for "${ssid.trim()}"... ESP32 is switching Wi-Fi networks.`,
+      type: 'info',
+    })
+    try {
+      await putJson('/api/config', {
+        ssid: ssid.trim(),
+        password: password,
+      })
+      setStatus({
+        text: `Configuration saved! ESP32 is connecting to "${ssid.trim()}". Access the board at http://bun-panel.local`,
+        type: 'success',
+      })
+    } catch {
+      setStatus({
+        text: `Switching to "${ssid.trim()}". Connect your device to the same Wi-Fi and open http://bun-panel.local`,
+        type: 'success',
+      })
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  const handleReset = async () => {
+    if (!window.confirm('Forget Wi-Fi credentials and start setup hotspot (bundle-setup)?')) {
+      return
+    }
+    try {
+      await postJson('/api/wifi/reset', {})
+      setStatus({
+        text: 'Credentials cleared! Board broadcast hotspot "bundle-setup" (pass: bundlepanel123, IP: 192.168.4.1).',
+        type: 'success',
+      })
+    } catch {
+      setStatus({ text: 'Setup hotspot activated. Connect to "bundle-setup".', type: 'info' })
+    }
+  }
+
+  if (!isOpen) return null
+
+  const isApMode = health?.mode === 'provisioning' || !health?.connected
+
+  return (
+    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="wifi-tool-title">
+      <div className="card modal-card wifi-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="card-title-group">
+            <div className="icon-shape icon-shape-primary">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+                <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                <line x1="12" y1="20" x2="12.01" y2="20" strokeWidth="3" />
+              </svg>
+            </div>
+            <div>
+              <h2 id="wifi-tool-title">Wi-Fi Setup Tool</h2>
+              <span className="modal-subtitle">Connect to Hotel, Hotspot, or Home Wi-Fi</span>
+            </div>
+          </div>
+          <button type="button" className="btn-modal-close" onClick={onClose} aria-label="Close dialog">
+            ✕
+          </button>
+        </div>
+
+        <div className="modal-body">
+          <div className={`wifi-status-box ${isApMode ? 'box-ap' : 'box-sta'}`}>
+            <div className="wifi-status-row">
+              <span className="wifi-status-indicator">
+                <span className="dot" />
+                {isApMode ? 'Hotspot Setup Mode' : 'Connected to Network'}
+              </span>
+              <span className="wifi-status-ip">{health?.ip || (isApMode ? '192.168.4.1' : '-')}</span>
+            </div>
+            {isApMode ? (
+              <p className="wifi-status-hint">
+                Hotspot: <strong>bundle-setup</strong> · Pass: <strong>bundlepanel123</strong>
+              </p>
+            ) : (
+              <p className="wifi-status-hint">
+                RSSI: <strong>{health?.rssi ?? 0} dBm</strong> · Host: <strong>bun-panel.local</strong>
+              </p>
+            )}
+          </div>
+
+          {status && (
+            <div className={`status-banner status-${status.type}`}>
+              <span>{status.text}</span>
+            </div>
+          )}
+
+          <div className="scan-section">
+            <div className="scan-header">
+              <span className="section-label">Nearby 2.4GHz Networks</span>
+              <button
+                type="button"
+                className="btn-scan"
+                onClick={() => doScan(true)}
+                disabled={scanning}
+              >
+                {scanning ? '⏳ Scanning...' : '🔄 Rescan'}
+              </button>
+            </div>
+
+            <div className="network-list">
+              {networks.length === 0 ? (
+                <div className="network-empty">
+                  {scanning ? 'Searching for Wi-Fi networks...' : 'No networks listed. Click "Rescan" above.'}
+                </div>
+              ) : (
+                networks.map((net) => {
+                  const isSelected = ssid === net.ssid
+                  const bars = net.rssi >= -55 ? 4 : net.rssi >= -67 ? 3 : net.rssi >= -78 ? 2 : 1
+                  const sigColor = net.rssi >= -65 ? '#34d399' : net.rssi >= -78 ? '#fbbf24' : '#f87171'
+                  return (
+                    <button
+                      key={net.ssid}
+                      type="button"
+                      className={`network-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => {
+                        setSsid(net.ssid)
+                        setStatus({ text: `Selected "${net.ssid}". Enter password below.`, type: 'info' })
+                      }}
+                    >
+                      <div className="net-info">
+                        <span className="net-ssid">{net.ssid}</span>
+                        <span className="net-meta">
+                          CH {net.channel} · {net.rssi} dBm
+                        </span>
+                      </div>
+                      <div className="net-badges">
+                        {net.secure ? (
+                          <span className="badge-secure" title="Password protected">🔒</span>
+                        ) : (
+                          <span className="badge-open" title="Open network">Open</span>
+                        )}
+                        <span className="net-bars" style={{ color: sigColor }}>
+                          {'●'.repeat(bars)}
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          <form className="wifi-form" onSubmit={handleConnect}>
+            <div className="form-group">
+              <label htmlFor="wifi-ssid">Network Name (SSID)</label>
+              <input
+                id="wifi-ssid"
+                type="text"
+                className="input-text"
+                placeholder="Select from list or type hotspot name"
+                value={ssid}
+                onInput={(e) => setSsid((e.target as HTMLInputElement).value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <div className="label-row">
+                <label htmlFor="wifi-pass">Password</label>
+                <button
+                  type="button"
+                  className="btn-toggle-pass"
+                  onClick={() => setShowPass(!showPass)}
+                >
+                  {showPass ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              <input
+                id="wifi-pass"
+                type={showPass ? 'text' : 'password'}
+                className="input-text"
+                placeholder="Enter Wi-Fi password (blank if open)"
+                value={password}
+                onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
+              />
+            </div>
+
+            <div className="hotspot-tip">
+              <span className="tip-icon">💡</span>
+              <span>
+                <strong>Hotspot Tip:</strong> If using iPhone / Android Personal Hotspot, enable{' '}
+                <em>"Maximize Compatibility"</em> (or 2.4GHz AP band).
+              </span>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="submit"
+                className="btn-primary btn-connect"
+                disabled={connecting || !ssid.trim()}
+              >
+                {connecting ? 'Connecting...' : 'Connect to Network'}
+              </button>
+              <button
+                type="button"
+                className="btn-danger-outline"
+                onClick={handleReset}
+              >
+                Forget Wi-Fi & Start Hotspot
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null)
+  const [showWifiModal, setShowWifiModal] = useState(false)
   const [peakTemp, setPeakTemp] = useState<number | null>(null)
   const [minTemp, setMinTemp] = useState<number | null>(null)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -1114,8 +1436,9 @@ export default function App() {
   }, [])
 
   const online = health !== null && consecutiveFailures < 3
-  const statusLabel = !online ? 'offline' : consecutiveFailures > 0 ? 'reconnecting' : 'online'
-  const pillClass = !online ? 'off' : consecutiveFailures > 0 ? 'warn' : 'on'
+  const isProvisioning = health?.mode === 'provisioning' || !online
+  const statusLabel = isProvisioning ? 'hotspot setup' : consecutiveFailures > 0 ? 'reconnecting' : 'online'
+  const pillClass = isProvisioning ? 'warn' : consecutiveFailures > 0 ? 'warn' : 'on'
 
   return (
     <main>
@@ -1139,6 +1462,21 @@ export default function App() {
         <div className="header-actions">
           <button
             type="button"
+            className="btn-wifi-tool"
+            onClick={() => setShowWifiModal(true)}
+            aria-label="Open Wi-Fi setup tool"
+            title="Configure Wi-Fi connection"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0" />
+              <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+              <line x1="12" y1="20" x2="12.01" y2="20" strokeWidth="3" />
+            </svg>
+            <span>Wi-Fi</span>
+          </button>
+          <button
+            type="button"
             className="theme-toggle"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
@@ -1152,6 +1490,26 @@ export default function App() {
           </span>
         </div>
       </header>
+
+      {/* Fallback Hotspot / Reconnect Alert Banner */}
+      {isProvisioning && (
+        <section className="card ap-alert-banner">
+          <div className="ap-alert-left">
+            <span className="ap-pulse-dot" />
+            <div>
+              <strong>Portable Wi-Fi Setup Available</strong>
+              <p>Connect this board to your phone hotspot or hotel Wi-Fi.</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-setup-banner"
+            onClick={() => setShowWifiModal(true)}
+          >
+            Configure Wi-Fi
+          </button>
+        </section>
+      )}
 
       <GoldPriceCard />
 
@@ -1352,7 +1710,13 @@ export default function App() {
         </div>
       </section>
 
-      <LinkPanel health={health} />
+      <LinkPanel health={health} onOpenWifi={() => setShowWifiModal(true)} />
+
+      <WifiSetupModal
+        isOpen={showWifiModal}
+        onClose={() => setShowWifiModal(false)}
+        health={health}
+      />
     </main>
   )
 }

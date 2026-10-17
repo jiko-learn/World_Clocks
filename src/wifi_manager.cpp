@@ -5,6 +5,7 @@
 #include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <WiFi.h>
+#include <algorithm>
 #include <esp_netif.h>
 #include <esp_wifi.h>
 
@@ -36,9 +37,13 @@ void tuneRadio() {
   country.cc[1] = 'H';
   country.cc[2] = '\0';
   country.schan = 1;
-  country.nchan = 14;
+  country.nchan = 13;
+  country.max_tx_power = 20;
   country.policy = WIFI_COUNTRY_POLICY_MANUAL;
-  esp_wifi_set_country(&country);
+  esp_err_t err = esp_wifi_set_country(&country);
+  if (err != ESP_OK) {
+    Serial.printf("[wifi] esp_wifi_set_country err=%d\n", err);
+  }
 }
 
 void startMdns() {
@@ -58,7 +63,7 @@ void applyStationConfig() {
   const DeviceConfig& cfg = configStore::get();
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
+  tuneRadio();
   WiFi.setHostname(cfg.hostname);
   if (cfg.useStaticIp) {
     WiFi.config(cfg.ip, cfg.gateway, cfg.subnet, cfg.dns);
@@ -75,6 +80,14 @@ void beginAttempt() {
   const DeviceConfig& cfg = configStore::get();
   Serial.printf("[wifi] beginAttempt ssid='%s' pass_len=%u\n", cfg.ssid, strlen(cfg.password));
   tuneRadio();
+  
+  wifi_config_t wifi_cfg;
+  memset(&wifi_cfg, 0, sizeof(wifi_cfg));
+  esp_wifi_get_config(WIFI_IF_STA, &wifi_cfg);
+  wifi_cfg.sta.pmf_cfg.capable = true;
+  wifi_cfg.sta.pmf_cfg.required = false;
+  esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg);
+
   WiFi.begin(cfg.ssid, cfg.password);
   attemptStartedAt = millis();
   waitingToRetry = false;
@@ -115,9 +128,11 @@ void handleConnecting() {
                   static_cast<unsigned long>(backoffMs));
     if (attempts >= kMaxAttempts) {
       Serial.println(
-          "[wifi] still failing; will keep retrying in background (credentials are stored)");
+          "[wifi] 5 attempts failed; starting fallback AP bundle-setup so user can configure wifi");
       attempts = 0;
-      backoffMs = kMaxBackoffMs;
+      backoffMs = kInitialBackoffMs;
+      wifiManager::startProvisioning();
+      return;
     }
 
     retryAt = now + backoffMs;
@@ -186,7 +201,7 @@ void loop() {
 
 void startProvisioning() {
   dnsServer.stop();
-  WiFi.mode(WIFI_AP);
+  WiFi.mode(WIFI_AP_STA);
   const bool ok = WiFi.softAP(kApSsid, kApPass);
   tuneRadio();
   dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -221,6 +236,77 @@ bool isConnected() {
 
 String ipString() {
   return isConnected() ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
+}
+
+static std::vector<ScannedAp> cachedScan;
+static bool scanning = false;
+static uint32_t scanStartedAt = 0;
+
+void triggerScan() {
+  if (scanning) {
+    return;
+  }
+  if (WiFi.getMode() == WIFI_AP) {
+    WiFi.mode(WIFI_AP_STA);
+  }
+  scanning = true;
+  scanStartedAt = millis();
+  WiFi.scanNetworks(true, false);
+  Serial.println("[wifi] async network scan started");
+}
+
+bool isScanning() {
+  if (!scanning) {
+    return false;
+  }
+  int16_t status = WiFi.scanComplete();
+  if (status == WIFI_SCAN_RUNNING) {
+    if (millis() - scanStartedAt > 12000) {
+      WiFi.scanDelete();
+      scanning = false;
+      Serial.println("[wifi] scan timed out");
+    }
+    return true;
+  }
+  if (status >= 0) {
+    cachedScan.clear();
+    for (int i = 0; i < status; ++i) {
+      String ssid = WiFi.SSID(i);
+      if (ssid.length() == 0) continue;
+      int rssi = WiFi.RSSI(i);
+      bool secure = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+      uint8_t channel = WiFi.channel(i);
+      bool found = false;
+      for (auto& item : cachedScan) {
+        if (item.ssid == ssid) {
+          found = true;
+          if (rssi > item.rssi) {
+            item.rssi = rssi;
+            item.secure = secure;
+            item.channel = channel;
+          }
+          break;
+        }
+      }
+      if (!found) {
+        cachedScan.push_back({ssid, rssi, secure, channel});
+      }
+    }
+    std::sort(cachedScan.begin(), cachedScan.end(),
+              [](const ScannedAp& a, const ScannedAp& b) {
+                return a.rssi > b.rssi;
+              });
+    WiFi.scanDelete();
+    Serial.printf("[wifi] scan finished, %u unique APs found\n", static_cast<unsigned>(cachedScan.size()));
+  }
+  scanning = false;
+  return false;
+}
+
+bool getScannedNetworks(std::vector<ScannedAp>& list) {
+  isScanning();
+  list = cachedScan;
+  return !scanning;
 }
 
 }

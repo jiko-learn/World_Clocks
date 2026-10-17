@@ -1,6 +1,7 @@
 #include "web_server.h"
 
 #include "api_routes.h"
+#include "wifi_manager.h"
 
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
@@ -60,6 +61,13 @@ void handleNotFound(AsyncWebServerRequest* request) {
     request->send(404, "application/json", "{\"error\":\"not_found\"}");
     return;
   }
+  if (wifiManager::mode() == WifiMode::Provisioning) {
+    const String& host = request->host();
+    if (host != "192.168.4.1" && !host.startsWith("bun-panel")) {
+      request->redirect("http://192.168.4.1/");
+      return;
+    }
+  }
   if (url.endsWith(".ico") || url.endsWith(".png") || url.endsWith(".jpg") ||
       url.endsWith(".svg") || url.endsWith(".map") || url.endsWith(".json") ||
       url.endsWith(".txt")) {
@@ -106,6 +114,16 @@ bool begin() {
   });
   server.on("/", HTTP_GET, sendIndex);
   server.on("/index.html", HTTP_GET, sendIndex);
+
+  // Captive portal probes
+  auto captiveRedirect = [](AsyncWebServerRequest* req) {
+    req->redirect("http://192.168.4.1/");
+  };
+  server.on("/hotspot-detect.html", HTTP_GET, captiveRedirect);
+  server.on("/generate_204", HTTP_GET, captiveRedirect);
+  server.on("/gen_204", HTTP_GET, captiveRedirect);
+  server.on("/connecttest.txt", HTTP_GET, captiveRedirect);
+  server.on("/ncsi.txt", HTTP_GET, captiveRedirect);
 
   server.onNotFound(handleNotFound);
 

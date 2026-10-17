@@ -13,7 +13,7 @@
 namespace {
 
 constexpr const char* kJson = "application/json";
-constexpr size_t kReplyBuffer = 512;
+constexpr size_t kReplyBuffer = 2048;
 constexpr const char* kFwVersion = "0.1.0";
 
 char replyBuffer[kReplyBuffer];
@@ -234,6 +234,30 @@ void handleTime(AsyncWebServerRequest* request) {
   sendJson(request, doc);
 }
 
+void handleWifiScan(AsyncWebServerRequest* request) {
+  std::vector<ScannedAp> list;
+  bool isScan = wifiManager::isScanning();
+  wifiManager::getScannedNetworks(list);
+
+  if (!isScan && list.empty()) {
+    wifiManager::triggerScan();
+    isScan = true;
+  }
+
+  JsonDocument doc;
+  doc["ok"] = true;
+  doc["scanning"] = isScan;
+  JsonArray arr = doc["networks"].to<JsonArray>();
+  for (const auto& ap : list) {
+    JsonObject item = arr.add<JsonObject>();
+    item["ssid"] = ap.ssid.c_str();
+    item["rssi"] = ap.rssi;
+    item["secure"] = ap.secure;
+    item["channel"] = ap.channel;
+  }
+  sendJson(request, doc);
+}
+
 void noop(AsyncWebServerRequest*) {}
 
 }
@@ -245,6 +269,11 @@ void registerRoutes(AsyncWebServer& server) {
   server.on("/api/time", HTTP_GET, handleTime, nullptr, nullptr);
   server.on("/api/config", HTTP_GET, handleConfigGet, nullptr, nullptr);
   server.on("/api/config", HTTP_PUT, noop, nullptr, handleConfigPut);
+  server.on("/api/wifi/scan", HTTP_GET, handleWifiScan, nullptr, nullptr);
+  server.on("/api/wifi/scan", HTTP_POST, [](AsyncWebServerRequest* req) {
+    wifiManager::triggerScan();
+    handleWifiScan(req);
+  }, nullptr, nullptr);
   server.on("/api/wifi/reset", HTTP_POST, handleWifiReset, nullptr, nullptr);
   server.on("/api/state", HTTP_GET, handleState, nullptr, nullptr);
   server.on("/api/link", HTTP_GET, handleLink, nullptr, nullptr);
