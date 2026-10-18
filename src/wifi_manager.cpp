@@ -28,29 +28,29 @@ uint8_t attempts = 0;
 bool waitingToRetry = false;
 
 DNSServer dnsServer;
+static std::vector<ScannedAp> cachedScan;
 
 void tuneRadio() {
   WiFi.setSleep(false);
   WiFi.setTxPower(WIFI_POWER_17dBm);
-  wifi_country_t country = {};
-  country.cc[0] = 'T';
-  country.cc[1] = 'H';
-  country.cc[2] = '\0';
-  country.schan = 1;
-  country.nchan = 13;
-  country.max_tx_power = 20;
-  country.policy = WIFI_COUNTRY_POLICY_MANUAL;
-  esp_err_t err = esp_wifi_set_country(&country);
-  if (err != ESP_OK) {
-    Serial.printf("[wifi] esp_wifi_set_country err=%d\n", err);
+  wifi_country_t country;
+  if (esp_wifi_get_country(&country) == ESP_OK) {
+    country.cc[0] = 'T';
+    country.cc[1] = 'H';
+    country.cc[2] = ' ';
+    country.schan = 1;
+    country.nchan = 13;
+    country.policy = WIFI_COUNTRY_POLICY_AUTO;
+    esp_wifi_set_country(&country);
   }
 }
 
 void startMdns() {
   const char* hostname = configStore::get().hostname;
   if (!hostname[0]) {
-    return;
+    hostname = "bundle-panel";
   }
+  MDNS.end();
   if (MDNS.begin(hostname)) {
     MDNS.addService("http", "tcp", 80);
     Serial.printf("[mdns] http://%s.local\n", hostname);
@@ -62,33 +62,44 @@ void startMdns() {
 void applyStationConfig() {
   const DeviceConfig& cfg = configStore::get();
   WiFi.persistent(false);
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAP(kApSsid, kApPass);
+  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+  dnsServer.start(53, "*", WiFi.softAPIP());
+  Serial.printf("[wifi] fallback AP %s active at %s\n", kApSsid, WiFi.softAPIP().toString().c_str());
   tuneRadio();
+  WiFi.setMinSecurity(WIFI_AUTH_OPEN);
+  WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+  WiFi.setAutoReconnect(true);
   WiFi.setHostname(cfg.hostname);
-  if (cfg.useStaticIp) {
-    WiFi.config(cfg.ip, cfg.gateway, cfg.subnet, cfg.dns);
-  } else {
-    esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    if (netif) {
-      esp_netif_dhcpc_start(netif);
-    }
+
+  // Never assume the last IP and gateway. Always do fresh clean DHCP negotiation.
+  WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0),
+              IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
+  esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+  if (netif) {
+    esp_netif_dhcpc_stop(netif);
+    esp_netif_dhcpc_start(netif);
   }
-  WiFi.setAutoReconnect(false);
 }
 
 void beginAttempt() {
   const DeviceConfig& cfg = configStore::get();
   Serial.printf("[wifi] beginAttempt ssid='%s' pass_len=%u\n", cfg.ssid, strlen(cfg.password));
   tuneRadio();
-  
-  wifi_config_t wifi_cfg;
-  memset(&wifi_cfg, 0, sizeof(wifi_cfg));
-  esp_wifi_get_config(WIFI_IF_STA, &wifi_cfg);
-  wifi_cfg.sta.pmf_cfg.capable = true;
-  wifi_cfg.sta.pmf_cfg.required = false;
-  esp_wifi_set_config(WIFI_IF_STA, &wifi_cfg);
+  WiFi.disconnect(false);
+  delay(100);
 
   WiFi.begin(cfg.ssid, cfg.password);
+
+  // Disable PMF (802.11w) after WiFi.begin for compatibility with True Online / Sagemcom routers
+  wifi_config_t conf;
+  if (esp_wifi_get_config(WIFI_IF_STA, &conf) == ESP_OK) {
+    conf.sta.pmf_cfg.capable = false;
+    conf.sta.pmf_cfg.required = false;
+    esp_wifi_set_config(WIFI_IF_STA, &conf);
+  }
+
   attemptStartedAt = millis();
   waitingToRetry = false;
 }
@@ -163,14 +174,19 @@ void begin() {
     }
   });
 
-  if (configStore::hasCredentials()) {
-    startConnecting();
-  } else {
-    startProvisioning();
-  }
+  // Reset to Wi-Fi setup every time the board starts.
+  // Never assume the last IP or gateway.
+  configStore::clear();
+  WiFi.persistent(false);
+  WiFi.disconnect(true, true);
+  WiFi.config(IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0),
+              IPAddress(0, 0, 0, 0), IPAddress(0, 0, 0, 0));
+  startProvisioning();
+  Serial.println("[wifi] reset to Wi-Fi setup on startup (hotspot bundle-setup at 192.168.4.1)");
 }
 
 void loop() {
+  dnsServer.processNextRequest();
   switch (currentMode) {
     case WifiMode::Connecting:
       handleConnecting();
@@ -191,7 +207,6 @@ void loop() {
       break;
 
     case WifiMode::Provisioning:
-      dnsServer.processNextRequest();
       break;
 
     default:
@@ -238,7 +253,6 @@ String ipString() {
   return isConnected() ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
 }
 
-static std::vector<ScannedAp> cachedScan;
 static bool scanning = false;
 static uint32_t scanStartedAt = 0;
 
@@ -249,9 +263,10 @@ void triggerScan() {
   if (WiFi.getMode() == WIFI_AP) {
     WiFi.mode(WIFI_AP_STA);
   }
+  tuneRadio();
   scanning = true;
   scanStartedAt = millis();
-  WiFi.scanNetworks(true, false);
+  WiFi.scanNetworks(true, true, false, 300);
   Serial.println("[wifi] async network scan started");
 }
 

@@ -61,6 +61,13 @@ void handleHealth(AsyncWebServerRequest* request) {
   doc["mode"] = modeName();
   doc["connected"] = wifiManager::isConnected();
   doc["ip"] = wifiManager::ipString().c_str();
+  doc["gateway"] = wifiManager::isConnected() ? WiFi.gatewayIP().toString() : "0.0.0.0";
+  doc["subnet"] = wifiManager::isConnected() ? WiFi.subnetMask().toString() : "255.255.255.0";
+  doc["dns"] = wifiManager::isConnected() ? WiFi.dnsIP().toString() : "0.0.0.0";
+  doc["mac"] = WiFi.macAddress();
+  doc["apIp"] = "192.168.4.1";
+  doc["hostname"] = configStore::get().hostname;
+  doc["mdns"] = String(configStore::get().hostname) + ".local";
   doc["rssi"] = wifiManager::isConnected() ? systemInfo::rssi() : 0;
   doc["temp"] = round(systemInfo::chipTemperature() * 10.0f) / 10.0f;
   doc["cpu"] = systemInfo::cpuLoad();

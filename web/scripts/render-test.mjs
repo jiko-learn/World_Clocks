@@ -130,7 +130,7 @@ const text = root.textContent || ''
 const html = root.innerHTML || ''
 
 const expectations = [
-  ['heading', 'Bundle Server'],
+  ['heading', 'ESP32 Bundle Dashboard'],
   ['uptime value', '1h 10m'],
   ['heap value', '228.3 KB'],
   ['ram title', 'RAM (Heap)'],
@@ -140,14 +140,14 @@ const expectations = [
   ['firmware', '0.1.0'],
   ['signal', '-56 dBm'],
   ['filesystem', '92.0 KB / 2.06 MB'],
-  ['link panel heading', 'Link quality'],
+  ['link panel heading', 'Network & IP Information'],
   ['cpu title', 'CPU & Thermal'],
   ['cpu value', '12%'],
   ['temp value', '52.4°C'],
   ['clock speed', '240 MHz'],
   ['gold heading', 'Live Gold Price'],
   ['gold symbol', 'XAU / USD'],
-  ['gold sync badge', '⏱ 30m sync'],
+  ['gold sync badge', '⏱ Sync :00, :30 (30m)'],
   ['gold chart title', '7D Price Movement'],
   ['gold chart timeline', 'Now'],
 ]

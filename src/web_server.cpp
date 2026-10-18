@@ -14,8 +14,6 @@ AsyncWebServer server(80);
 bool fsReady = false;
 std::vector<uint8_t> indexGz;
 
-static const char* kIndexEtag = "\"bundle-v2\"";
-
 void sendIndex(AsyncWebServerRequest* request) {
   if (request->client()) {
     request->client()->setNoDelay(true);
@@ -29,14 +27,6 @@ void sendIndex(AsyncWebServerRequest* request) {
     request->send(404, "text/plain", "index.html.gz not found");
     return;
   }
-  if (request->hasHeader("If-None-Match")) {
-    const AsyncWebHeader* inm = request->getHeader("If-None-Match");
-    if (inm && inm->value() == kIndexEtag) {
-      Serial.println("[web] ETag match -> 304");
-      request->send(304);
-      return;
-    }
-  }
   AsyncWebServerResponse* response = request->beginResponse(
       "text/html",
       indexGz.size(),
@@ -49,8 +39,9 @@ void sendIndex(AsyncWebServerRequest* request) {
         return len;
       });
   response->addHeader("Content-Encoding", "gzip");
-  response->addHeader("ETag", kIndexEtag);
-  response->addHeader("Cache-Control", "public, max-age=3600");
+  response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  response->addHeader("Pragma", "no-cache");
+  response->addHeader("Expires", "0");
   request->send(response);
   Serial.printf("[web] sendIndex served %u bytes\n", static_cast<unsigned>(indexGz.size()));
 }
@@ -63,7 +54,7 @@ void handleNotFound(AsyncWebServerRequest* request) {
   }
   if (wifiManager::mode() == WifiMode::Provisioning) {
     const String& host = request->host();
-    if (host != "192.168.4.1" && !host.startsWith("bun-panel")) {
+    if (host != "192.168.4.1" && !host.startsWith("bundle-panel") && !host.startsWith("bun-panel")) {
       request->redirect("http://192.168.4.1/");
       return;
     }

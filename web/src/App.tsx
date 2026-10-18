@@ -12,6 +12,13 @@ type Health = {
   mode: string
   connected: boolean
   ip: string
+  gateway?: string
+  subnet?: string
+  dns?: string
+  mac?: string
+  apIp?: string
+  hostname?: string
+  mdns?: string
   rssi: number
   fsUsed?: number
   fsTotal?: number
@@ -127,6 +134,17 @@ function LinkPanel({ health, onOpenWifi }: { health: Health | null; onOpenWifi?:
   const currentRssi = health?.rssi ?? -100
   const color = signalColor(currentRssi, isConnected)
   const label = rssiLabel(currentRssi, isConnected)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+
+  const copyToClipboard = (text: string, key: string) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopiedKey(key)
+        setTimeout(() => setCopiedKey(null), 2000)
+      }).catch(() => { })
+    }
+  }
+
   const quality = !isConnected
     ? 'Disconnected'
     : currentRssi >= -60
@@ -134,6 +152,14 @@ function LinkPanel({ health, onOpenWifi }: { health: Health | null; onOpenWifi?:
       : currentRssi >= -75
         ? 'Good Signal'
         : 'Marginal Signal'
+
+  const staIp = health?.ip && health.ip !== '0.0.0.0' ? health.ip : (isConnected ? 'Assigning IP...' : 'Disconnected')
+  const mdnsHost = health?.mdns || 'bundle-panel.local'
+  const gateway = health?.gateway || '-'
+  const subnet = health?.subnet || '-'
+  const dns = health?.dns || '-'
+  const mac = health?.mac || '-'
+  const apIp = health?.apIp || '192.168.4.1'
 
   return (
     <section className="card link-panel-card">
@@ -147,7 +173,7 @@ function LinkPanel({ health, onOpenWifi }: { health: Health | null; onOpenWifi?:
               <line x1="12" y1="20" x2="12.01" y2="20" strokeWidth="3" />
             </svg>
           </div>
-          <h2>Link quality</h2>
+          <h2>Network & IP Information</h2>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {onOpenWifi && (
@@ -161,6 +187,7 @@ function LinkPanel({ health, onOpenWifi }: { health: Health | null; onOpenWifi?:
           </span>
         </div>
       </div>
+
       <div className="link-body">
         <div className="link-meter">
           <WifiBars rssi={currentRssi} connected={isConnected} />
@@ -170,19 +197,82 @@ function LinkPanel({ health, onOpenWifi }: { health: Health | null; onOpenWifi?:
           </div>
         </div>
         <div className="field">
-          <div className="k">Signal</div>
+          <div className="k">Signal Strength</div>
           <div className="v" style={{ color, fontWeight: 700 }}>
             {label}
           </div>
         </div>
+      </div>
+
+      <div className="net-ip-divider" />
+
+      {/* Primary IP Quick Cards */}
+      <div className="net-ip-hero-grid">
+        <div className="net-ip-box primary">
+          <div className="net-ip-box-header">
+            <span className="net-ip-box-label">Station IP (Local Network)</span>
+            {health?.ip && (
+              <button
+                type="button"
+                className="btn-copy-ip"
+                onClick={() => copyToClipboard(health.ip, 'sta')}
+                title="Copy IP"
+              >
+                {copiedKey === 'sta' ? '✓ Copied' : 'Copy'}
+              </button>
+            )}
+          </div>
+          <a
+            href={health?.ip ? `http://${health.ip}` : '#'}
+            target="_blank"
+            rel="noreferrer"
+            className="net-ip-link"
+          >
+            {staIp}
+          </a>
+          <span className="net-ip-hint">Direct HTTP address assigned by router DHCP</span>
+        </div>
+
+        <div className="net-ip-box mdns">
+          <div className="net-ip-box-header">
+            <span className="net-ip-box-label">mDNS Hostname Address</span>
+            <button
+              type="button"
+              className="btn-copy-ip"
+              onClick={() => copyToClipboard(`http://${mdnsHost}`, 'mdns')}
+              title="Copy mDNS URL"
+            >
+              {copiedKey === 'mdns' ? '✓ Copied' : 'Copy'}
+            </button>
+          </div>
+          <a
+            href={`http://${mdnsHost}`}
+            target="_blank"
+            rel="noreferrer"
+            className="net-ip-link"
+          >
+            http://{mdnsHost}
+          </a>
+          <span className="net-ip-hint">Zero-configuration local domain name</span>
+        </div>
+      </div>
+
+      {/* Network Configuration Details */}
+      <div className="grid net-details-grid">
+        <Field label="Gateway Router" value={gateway} />
+        <Field label="Subnet Mask" value={subnet} />
+        <Field label="DNS Server" value={dns} />
+        <Field label="Setup AP IP" value={apIp} sub="When in Hotspot Setup" />
+        <Field label="MAC Address" value={mac} />
+        <Field label="Hostname" value={health?.hostname || 'bundle-panel'} />
       </div>
     </section>
   )
 }
 
 const GOLD_API_KEY = '61b4e7e5a9f3bc6a3ba16fc15d298850835af4e1e541f811ecf922ec04f7cde3'
-const GOLD_INTERVAL_MS = 30 * 60 * 1000 // 30 mins
-const GOLD_BUFFER_KEY = 'bundle_gold_history_7d_v1'
+const GOLD_INTERVAL_MS = 30 * 60 * 1000 // 30 mins (:00, :30)
+const GOLD_BUFFER_KEY = 'bundle_gold_history_7d_v5'
 const MAX_BUFFER_POINTS = 336 // 7 days at 30-minute intervals (7 * 48 = 336)
 
 type GoldData = {
@@ -196,7 +286,7 @@ type GoldData = {
 }
 
 type GoldPoint = {
-  t: number // timestamp ms
+  t: number // timestamp ms (strictly quantized to :00 and :30)
   p: number // price in USD
 }
 
@@ -211,7 +301,28 @@ function getSafeStorage() {
   return null
 }
 
+function purgeLegacyGoldKeys() {
+  const storage = getSafeStorage()
+  if (!storage) return
+  try {
+    storage.removeItem('bundle_gold_history_7d_v1')
+    storage.removeItem('bundle_gold_history_7d_v2')
+    storage.removeItem('bundle_gold_history_7d_v3')
+    storage.removeItem('bundle_gold_history_7d_v4')
+  } catch {
+    // ignore
+  }
+}
+
+// Snaps any timestamp to exact :00 or :30 wall-clock mark (:00.000s)
+function floorToHalfHour(timestampMs: number): number {
+  const d = new Date(timestampMs)
+  d.setMinutes(Math.floor(d.getMinutes() / 30) * 30, 0, 0)
+  return d.getTime()
+}
+
 function loadGoldHistory(): GoldPoint[] {
+  purgeLegacyGoldKeys()
   const storage = getSafeStorage()
   if (!storage) return []
   try {
@@ -219,8 +330,22 @@ function loadGoldHistory(): GoldPoint[] {
     if (!raw) return []
     const parsed = JSON.parse(raw) as GoldPoint[]
     if (!Array.isArray(parsed) || parsed.length < 2) return []
-    const cutoff = Date.now() - 7 * 24 * 3600 * 1000
-    return parsed.filter((pt) => typeof pt.p === 'number' && typeof pt.t === 'number' && pt.t >= cutoff)
+    const cutoff = floorToHalfHour(Date.now() - 7 * 24 * 3600 * 1000)
+    const pointsMap = new Map<number, number>()
+    for (const pt of parsed) {
+      if (typeof pt.p === 'number' && typeof pt.t === 'number') {
+        const snappedT = floorToHalfHour(pt.t)
+        if (snappedT >= cutoff) {
+          pointsMap.set(snappedT, pt.p)
+        }
+      }
+    }
+    const result: GoldPoint[] = []
+    for (const [t, p] of pointsMap.entries()) {
+      result.push({ t, p })
+    }
+    result.sort((a, b) => a.t - b.t)
+    return result
   } catch {
     return []
   }
@@ -237,7 +362,7 @@ function saveGoldHistory(history: GoldPoint[]) {
 }
 
 function seed7dHistory(anchorPrice: number): GoldPoint[] {
-  const now = Date.now()
+  const latest30m = floorToHalfHour(Date.now())
   const stepMs = 30 * 60 * 1000 // 30 mins
   const points: GoldPoint[] = []
 
@@ -252,42 +377,57 @@ function seed7dHistory(anchorPrice: number): GoldPoint[] {
   for (let i = 0; i < MAX_BUFFER_POINTS - 1; i++) {
     const r1 = pseudoRand(i + 1)
     const r2 = pseudoRand(i + 500)
-    // Micro step (-0.18% to +0.18% per 30m) plus gentle multi-day wave trend
+    // Micro step (-0.18% to +0.18% per 30m) plus gentle multi-day wave trend (48 steps/day)
     const cycle = Math.sin((i / 48) * Math.PI) * (anchorPrice * 0.0006)
     const step = (r1 + r2 - 1) * (anchorPrice * 0.0016) + cycle
     deltas.push(step)
   }
 
   let running = anchorPrice
-  points.unshift({ t: now, p: anchorPrice })
-  for (let i = 1; i < MAX_BUFFER_POINTS; i++) {
-    const t = now - i * stepMs
-    running -= deltas[MAX_BUFFER_POINTS - 1 - i]
-    points.unshift({ t, p: Number(running.toFixed(2)) })
+  for (let i = MAX_BUFFER_POINTS - 1; i >= 1; i--) {
+    const t = latest30m - i * stepMs
+    running -= deltas[i - 1]
+    points.push({ t, p: Number(running.toFixed(2)) })
   }
+  points.push({ t: latest30m, p: anchorPrice })
 
   return points
 }
 
 function updateHistoryBuffer(currentHistory: GoldPoint[], latestPrice: number): GoldPoint[] {
-  const now = Date.now()
-  const cutoff = now - 7 * 24 * 3600 * 1000
-  let valid = currentHistory.filter((pt) => typeof pt.p === 'number' && typeof pt.t === 'number' && pt.t >= cutoff)
+  const current30m = floorToHalfHour(Date.now())
+  const cutoff = current30m - 7 * 24 * 3600 * 1000
 
-  // Ensure full 7-day span by backfilling if points don't span the full window
+  // 1. Sanitize all incoming points so every point is strictly snapped to :00 or :30
+  const pointsMap = new Map<number, number>()
+  for (const pt of currentHistory) {
+    if (typeof pt.p === 'number' && typeof pt.t === 'number') {
+      const snappedT = floorToHalfHour(pt.t)
+      if (snappedT >= cutoff) {
+        pointsMap.set(snappedT, pt.p)
+      }
+    }
+  }
+
+  let valid: GoldPoint[] = Array.from(pointsMap.entries())
+    .map(([t, p]) => ({ t, p }))
+    .sort((a, b) => a.t - b.t)
+
+  // 2. Ensure full 7-day span by backfilling if points don't span the full window
   if (valid.length < MAX_BUFFER_POINTS) {
     const anchor = valid.length > 0 ? valid[0].p : latestPrice
     const seed = seed7dHistory(anchor)
-    const oldestValid = valid.length > 0 ? valid[0].t : now
+    const oldestValid = valid.length > 0 ? valid[0].t : current30m
     const backfill = seed.filter((s) => s.t < oldestValid)
     valid = [...backfill, ...valid]
   }
 
+  // 3. Update current 30-minute slot with the freshly fetched price
   const last = valid[valid.length - 1]
-  if (last && now - last.t < 10 * 60 * 1000) {
-    valid[valid.length - 1] = { t: now, p: latestPrice }
+  if (last && last.t === current30m) {
+    valid[valid.length - 1] = { t: current30m, p: latestPrice }
   } else {
-    valid.push({ t: now, p: latestPrice })
+    valid.push({ t: current30m, p: latestPrice })
   }
 
   const trimmed = valid.slice(-MAX_BUFFER_POINTS)
@@ -323,7 +463,7 @@ function buildSmoothSpline(pts: { x: number; y: number }[]): string {
 }
 
 function formatChartTime(timestamp: number): string {
-  const date = new Date(timestamp)
+  const date = new Date(floorToHalfHour(timestamp))
   return date.toLocaleDateString([], {
     weekday: 'short',
     month: 'numeric',
@@ -341,16 +481,17 @@ function getInitialGoldHistory(): GoldPoint[] {
   return seed7dHistory(anchor)
 }
 
+// Computes ms until the next wall-clock 30-minute boundary (:00, :30)
+// adding +2 seconds so upstream financial APIs commit the candle
 function getNextHalfHourSyncDelayMs(): number {
   const now = new Date()
   const m = now.getMinutes()
   const s = now.getSeconds()
   const ms = now.getMilliseconds()
-  // Offset in current 30-minute block (0 to 1,799,999 ms)
+  // Offset into current 30-minute block (0 to 1,799,999 ms)
   const elapsedMs = (m % 30) * 60 * 1000 + s * 1000 + ms
-  // Trigger ~3 seconds past the mark (:00:03 and :30:03)
-  // so external financial feeds have committed the half-hour candle
-  const TARGET_OFFSET_MS = 3 * 1000
+  // Target 2 seconds past the mark (:00:02 and :30:02)
+  const TARGET_OFFSET_MS = 2 * 1000
   let delay = TARGET_OFFSET_MS - elapsedMs
   if (delay <= 1000) {
     delay += 30 * 60 * 1000
@@ -401,7 +542,7 @@ function GoldPriceCard() {
   }
 
   useEffect(() => {
-    // Initial fetch on component mount
+    // Initial fetch on component mount / reload (fetches immediately at any minute)
     void fetchGold()
 
     let timerId: number
@@ -463,7 +604,7 @@ function GoldPriceCard() {
     const pts = history.map((pt, i) => {
       const x = PAD_L + (i / (history.length - 1)) * innerW
       const y = PAD_T + (1 - (pt.p - yMin) / yRange) * innerH
-      return { x, y, pt }
+      return { x, y, pt: { t: floorToHalfHour(pt.t), p: pt.p } }
     })
 
     const curveD = buildSmoothSpline(pts)
@@ -521,7 +662,9 @@ function GoldPriceCard() {
           <span className="gold-symbol-pill">XAU / USD</span>
         </div>
         <div className="gold-header-right">
-          <span className="gold-interval-badge">⏱ 30m sync</span>
+          <span className="gold-interval-badge" title="Syncs at :00 and :30 wall-clock marks">
+            ⏱ Sync :00, :30 (30m)
+          </span>
           <button
             type="button"
             className={`gold-refresh-btn ${loading ? 'spinning' : ''}`}
@@ -869,7 +1012,7 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
       {/* Outer Case Bezel */}
       <circle cx="50" cy="50" r="47.5" fill={`url(#dial-grad-${accentColor.replace('#', '')})`} stroke="var(--dial-border)" strokeWidth="1.5" />
       <circle cx="50" cy="50" r="45" fill="none" stroke="var(--dial-inner-ring)" strokeWidth="0.8" />
-      
+
       {/* Precision Minute and Hour Ticks */}
       {TICK_COORDS.map((t) => (
         <line
@@ -883,7 +1026,7 @@ function AnalogClock({ h, m, s, accentColor }: { h: number; m: number; s: number
           strokeLinecap="round"
         />
       ))}
-      
+
       {/* Hour Hand */}
       <line
         x1="50"
@@ -1143,12 +1286,12 @@ function WifiSetupModal({
         password: password,
       })
       setStatus({
-        text: `Configuration saved! ESP32 is connecting to "${ssid.trim()}". Access the board at http://bun-panel.local`,
+        text: `Configuration saved! ESP32 is connecting to "${ssid.trim()}". Access the board at http://bundle-panel.local`,
         type: 'success',
       })
     } catch {
       setStatus({
-        text: `Switching to "${ssid.trim()}". Connect your device to the same Wi-Fi and open http://bun-panel.local`,
+        text: `Switching to "${ssid.trim()}". Connect your device to the same Wi-Fi and open http://bundle-panel.local`,
         type: 'success',
       })
     } finally {
@@ -1358,7 +1501,7 @@ export default function App() {
         if (saved === 'dark' || saved === 'light') return saved
         if (window.matchMedia?.('(prefers-color-scheme: light)').matches) return 'light'
       }
-    } catch {}
+    } catch { }
     return 'dark'
   })
   const alive = useRef(true)
@@ -1376,19 +1519,19 @@ export default function App() {
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem('theme', theme)
       }
-    } catch {}
+    } catch { }
   }, [theme])
 
   const toggleTheme = () => {
     try {
       document.documentElement.classList.add('theme-transition')
-    } catch {}
+    } catch { }
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
     if (typeof window !== 'undefined') {
       window.setTimeout(() => {
         try {
           document.documentElement.classList.remove('theme-transition')
-        } catch {}
+        } catch { }
       }, 300)
     }
   }
@@ -1435,6 +1578,14 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [])
 
+  const hasAutoOpenedWifi = useRef(false)
+  useEffect(() => {
+    if (health && (!health.connected || health.mode === 'provisioning') && !hasAutoOpenedWifi.current) {
+      hasAutoOpenedWifi.current = true
+      setShowWifiModal(true)
+    }
+  }, [health])
+
   const online = health !== null && consecutiveFailures < 3
   const isProvisioning = health?.mode === 'provisioning' || !online
   const statusLabel = isProvisioning ? 'hotspot setup' : consecutiveFailures > 0 ? 'reconnecting' : 'online'
@@ -1454,12 +1605,18 @@ export default function App() {
                 <line x1="6" y1="18" x2="6.01" y2="18" strokeWidth="3" />
               </svg>
             </div>
-            <h1>Bundle Server</h1>
+            <h1>ESP32 Bundle Dashboard</h1>
             <span className="fw-tag">v{health?.fw ?? '0.1.0'}</span>
           </div>
-          <p className="sub">ESP32 Dual-Core Microcontroller · World Clock & Telemetry</p>
+          <p className="sub">ESP32 · World Clocks</p>
         </div>
         <div className="header-actions">
+          {health?.ip && (
+            <div className="header-ip-badge" title="Device IP on local network">
+              <span className="header-ip-dot" />
+              <span className="header-ip-text">{health.ip}</span>
+            </div>
+          )}
           <button
             type="button"
             className="btn-wifi-tool"
@@ -1559,8 +1716,8 @@ export default function App() {
               <span className="ram-meta">
                 {health?.totalHeap
                   ? `${fmtBytes(health.totalHeap - health.heap)} used / ${fmtBytes(health.totalHeap)} total (${Math.round(
-                      ((health.totalHeap - health.heap) * 100) / health.totalHeap,
-                    )}%)`
+                    ((health.totalHeap - health.heap) * 100) / health.totalHeap,
+                  )}%)`
                   : `${fmtBytes(health?.heap)} free`}
               </span>
             </div>
@@ -1610,9 +1767,8 @@ export default function App() {
                   <span className="thermal-feature-label">Chip Temperature</span>
                   {health?.temp !== undefined && (
                     <span
-                      className={`thermal-status-pill ${
-                        health.temp > 75 ? 'pill-hot' : health.temp > 60 ? 'pill-warm' : health.temp >= 45 ? 'pill-nom' : 'pill-cool'
-                      }`}
+                      className={`thermal-status-pill ${health.temp > 75 ? 'pill-hot' : health.temp > 60 ? 'pill-warm' : health.temp >= 45 ? 'pill-nom' : 'pill-cool'
+                        }`}
                     >
                       <span className="dot" />
                       {health.temp > 75 ? 'Hot' : health.temp > 60 ? 'Warm' : health.temp >= 45 ? 'Nominal' : 'Cool'}
